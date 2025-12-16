@@ -281,7 +281,7 @@ export class AIFileNamerSettingTab extends PluginSettingTab {
     card.style.padding = '16px';
     card.style.borderRadius = '8px';
     card.style.backgroundColor = 'var(--background-secondary)';
-    card.style.marginBottom = '20px';
+    card.style.marginBottom = '10px';
     return card;
   }
 

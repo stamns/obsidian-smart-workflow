@@ -4,6 +4,20 @@ import { FileAnalyzer } from './fileAnalyzer';
 import { AIFileNamerSettings } from '../settings/settings';
 
 /**
+ * 重命名结果接口
+ */
+export interface RenameResult {
+  /** 是否执行了重命名 */
+  renamed: boolean;
+  /** 原文件名（不含扩展名） */
+  oldName: string;
+  /** 新文件名（不含扩展名） */
+  newName: string;
+  /** 结果消息 */
+  message: string;
+}
+
+/**
  * 文件名服务类
  * 负责文件读取、文件名生成和文件重命名
  */
@@ -22,8 +36,9 @@ export class FileNameService {
    * 生成文件名并重命名文件
    * @param file 目标文件
    * @param configId 配置 ID（可选）
+   * @returns 重命名结果
    */
-  async generateAndRename(file: TFile, configId?: string): Promise<void> {
+  async generateAndRename(file: TFile, configId?: string): Promise<RenameResult> {
     // 读取文件内容
     const content = await this.app.vault.read(file);
 
@@ -76,9 +91,21 @@ export class FileNameService {
     // 验证和清理文件名
     const sanitizedFileName = this.sanitizeFileName(newFileName);
 
-    // 检查文件名是否实际改变
-    if (sanitizedFileName === currentFileName) {
-      throw new Error('生成的文件名与当前文件名相同，无需重命名');
+    // 标准化当前文件名以便比较（使用相同的清理逻辑）
+    const sanitizedCurrentFileName = this.sanitizeFileName(currentFileName);
+
+    // 检查文件名是否实际改变（不区分大小写比较，适配 Windows）
+    if (sanitizedFileName.toLowerCase() === sanitizedCurrentFileName.toLowerCase()) {
+      if (this.settings.debugMode) {
+        console.debug('[FileNameService] 生成的文件名与当前文件名相同，跳过重命名');
+      }
+      // 返回"未改变"的结果，而不抛出错误
+      return {
+        renamed: false,
+        oldName: currentFileName,
+        newName: sanitizedFileName,
+        message: '当前文件名已经很合适，无需修改'
+      };
     }
 
     // 构建新路径
@@ -89,6 +116,17 @@ export class FileNameService {
 
     // 执行重命名
     await this.app.fileManager.renameFile(file, finalPath);
+
+    // 提取最终文件名（不含扩展名和路径）
+    const finalFileName = finalPath.split('/').pop()?.replace(/\.[^.]+$/, '') || sanitizedFileName;
+
+    // 返回成功结果
+    return {
+      renamed: true,
+      oldName: currentFileName,
+      newName: finalFileName,
+      message: `文件已重命名为: ${finalFileName}`
+    };
   }
 
   /**

@@ -2,7 +2,7 @@ import { Plugin, TFile, Menu, MarkdownView } from 'obsidian';
 import { AIFileNamerSettings, DEFAULT_SETTINGS } from './settings/settings';
 import { AIFileNamerSettingTab } from './settings/settingsTab';
 import { AIService } from './services/aiService';
-import { FileNameService } from './services/fileNameService';
+import { FileNameService, RenameResult } from './services/fileNameService';
 import { NoticeHelper } from './ui/noticeHelper';
 
 /**
@@ -156,9 +156,14 @@ export default class AIFileNamerPlugin extends Plugin {
     try {
       NoticeHelper.info('正在生成文件名...');
 
-      await this.fileNameService.generateAndRename(file);
+      const result: RenameResult = await this.fileNameService.generateAndRename(file);
 
-      NoticeHelper.success(`文件已重命名为: ${file.basename}`);
+      // 根据结果显示不同的提示
+      if (result.renamed) {
+        NoticeHelper.success(result.message);
+      } else {
+        NoticeHelper.info(result.message);
+      }
     } catch (error) {
       if (error instanceof Error) {
         NoticeHelper.error(`操作失败: ${error.message}`);
