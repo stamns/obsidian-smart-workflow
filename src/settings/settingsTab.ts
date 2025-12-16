@@ -37,6 +37,12 @@ class RenameConfigModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
+    // 设置弹窗宽度
+    this.modalEl.setCssProps({
+      width: '450px',
+      'max-width': '90vw'
+    });
+
     new Setting(contentEl)
       .setName('重命名配置')
       .setHeading();
@@ -108,6 +114,88 @@ class RenameConfigModal extends Modal {
 }
 
 /**
+ * 配置删除确认弹窗
+ */
+class DeleteConfigModal extends Modal {
+  private configName: string;
+  private onConfirm: () => void;
+
+  constructor(app: App, configName: string, onConfirm: () => void) {
+    super(app);
+    this.configName = configName;
+    this.onConfirm = onConfirm;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    // 设置弹窗宽度
+    this.modalEl.setCssProps({
+      width: '500px',
+      'max-width': '90vw'
+    });
+
+    new Setting(contentEl)
+      .setName('⚠️ 确认删除配置')
+      .setHeading();
+
+    // 警告信息
+    const warningContainer = contentEl.createDiv({ cls: 'setting-item' });
+    warningContainer.setCssProps({
+      padding: '12px',
+      'margin-bottom': '16px',
+      'background-color': 'var(--background-modifier-error)',
+      'border-radius': '6px',
+      'border': '1px solid var(--background-modifier-error-hover)'
+    });
+
+    const warningText = warningContainer.createDiv();
+    warningText.setText(`确定要删除配置"${this.configName}"吗？此操作无法撤销。`);
+    warningText.setCssProps({
+      color: 'var(--text-error)',
+      'font-weight': '500'
+    });
+
+    // 创建按钮容器
+    const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
+    buttonContainer.setCssProps({
+      display: 'flex',
+      'justify-content': 'flex-end',
+      gap: '8px'
+    });
+
+    // 取消按钮
+    const cancelButton = buttonContainer.createEl('button', { text: '取消' });
+    cancelButton.addEventListener('click', () => {
+      this.close();
+    });
+
+    // 确认删除按钮
+    const confirmButton = buttonContainer.createEl('button', {
+      text: '确认删除',
+      cls: 'mod-warning'
+    });
+    confirmButton.addEventListener('click', () => {
+      this.onConfirm();
+      this.close();
+    });
+
+    // ESC 键关闭
+    contentEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.close();
+      }
+    });
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
+
+/**
  * 设置标签页类
  * 提供插件配置界面
  */
@@ -133,8 +221,7 @@ export class AIFileNamerSettingTab extends PluginSettingTab {
     // GitHub Feedback Link
     const feedbackContainer = headerEl.createDiv({ cls: 'setting-item-description' });
     feedbackContainer.setCssProps({
-      'margin-top': '-10px',
-      'margin-bottom': '20px'
+      'margin-bottom': '10px'
     });
     feedbackContainer.appendText('谢谢你的使用~欢迎反馈！戳这里：');
     feedbackContainer.createEl('a', {
@@ -290,24 +377,51 @@ export class AIFileNamerSettingTab extends PluginSettingTab {
         .setButtonText('删除配置')
         .setWarning()
         .onClick(async () => {
-          // 不允许删除最后一个配置
-          if (this.plugin.settings.configs.length <= 1) {
+          // 获取当前配置
+          const currentConfig = this.plugin.settings.configs.find(
+            c => c.id === this.plugin.settings.activeConfigId
+          );
+
+          if (!currentConfig) {
             return;
           }
 
-          // 删除当前配置
-          this.plugin.settings.configs = this.plugin.settings.configs.filter(
-            c => c.id !== this.plugin.settings.activeConfigId
+          // 不允许删除默认配置
+          if (currentConfig.id === 'default') {
+            new Notice('❌ 无法删除默认配置');
+            return;
+          }
+
+          // 不允许删除最后一个配置
+          if (this.plugin.settings.configs.length <= 1) {
+            new Notice('❌ 无法删除最后一个配置');
+            return;
+          }
+
+          // 显示删除确认弹窗
+          const modal = new DeleteConfigModal(
+            this.app,
+            currentConfig.name,
+            async () => {
+              // 删除当前配置
+              this.plugin.settings.configs = this.plugin.settings.configs.filter(
+                c => c.id !== this.plugin.settings.activeConfigId
+              );
+
+              // 切换到第一个配置
+              this.plugin.settings.activeConfigId = this.plugin.settings.configs[0].id;
+
+              // 保存设置
+              await this.plugin.saveSettings();
+
+              // 显示成功提示
+              new Notice('✅ 配置已删除');
+
+              // 重新渲染界面
+              this.display();
+            }
           );
-
-          // 切换到第一个配置
-          this.plugin.settings.activeConfigId = this.plugin.settings.configs[0].id;
-
-          // 保存设置
-          await this.plugin.saveSettings();
-
-          // 重新渲染界面
-          this.display();
+          modal.open();
         }));
 
     // API 配置部分
