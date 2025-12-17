@@ -1,6 +1,7 @@
 # Node modules
 node_modules/
 .claude/
+*.bat
 
 # Build output
 main.js
