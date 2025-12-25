@@ -25,21 +25,6 @@ npm run build:rust -- win32-x64
 
 # 4. 安装到 Obsidian
 npm run install:dev
-# 或使用快速安装（需要先配置路径）
-node scripts/quick-install.js "你的vault路径"
-```
-
-### 快速开发循环
-
-```bash
-# 1. 设置环境变量（仅需一次）
-# Windows: set OBSIDIAN_PLUGIN_PATH=D:\MyVault\.obsidian\plugins\obsidian-smart-workflow
-# macOS/Linux: export OBSIDIAN_PLUGIN_PATH="/path/to/vault/.obsidian/plugins/obsidian-smart-workflow"
-
-# 2. 开发循环（一行命令）
-npm run build && node scripts/quick-install.js
-
-# 3. 在 Obsidian 中按 Ctrl+R 重新加载
 ```
 
 ---
@@ -93,21 +78,6 @@ npm run install:dev
 
 ---
 
-### quick-install.js - 快速安装
-
-```bash
-# 方法 1: 命令行参数
-node scripts/quick-install.js "D:\MyVault\.obsidian\plugins\obsidian-smart-workflow"
-
-# 方法 2: 环境变量
-set OBSIDIAN_PLUGIN_PATH=D:\MyVault\.obsidian\plugins\obsidian-smart-workflow
-node scripts/quick-install.js
-```
-
-无需交互，适合频繁开发迭代。
-
----
-
 ## 发布流程
 
 **推荐使用 GitHub Actions 自动化发布**:
@@ -139,13 +109,6 @@ git push origin vx.x.x
 - 本地开发只构建当前平台
 - 使用 GitHub Actions 在对应平台上构建
 - 发布时从 GitHub Release 下载完整构建产物
-
-### 找不到插件目录
-
-**解决方案**:
-1. 打开 Obsidian → 设置 → 第三方插件
-2. 点击"打开插件文件夹"
-3. 复制路径用于 `quick-install.js`
 
 ### 二进制文件缺失
 

@@ -22,6 +22,26 @@ pub fn get_shell_by_type(shell_type: Option<&str>) -> CommandBuilder {
             }
         }
         Some("wsl") => CommandBuilder::new("wsl.exe"),
+        Some("gitbash") => {
+            #[cfg(windows)]
+            {
+                // Git Bash: 尝试查找常见安装路径
+                if let Ok(bash_path) = which_gitbash() {
+                    let mut cmd = CommandBuilder::new(bash_path);
+                    // 添加 --login 参数以加载用户配置
+                    cmd.arg("--login");
+                    cmd
+                } else {
+                    // 回退到默认 shell
+                    get_default_shell()
+                }
+            }
+            #[cfg(not(windows))]
+            {
+                // 非 Windows 平台，使用 bash
+                CommandBuilder::new("bash")
+            }
+        }
         Some("bash") => CommandBuilder::new("bash"),
         Some("zsh") => CommandBuilder::new("zsh"),
         Some(custom) if custom.starts_with("custom:") => {
@@ -69,6 +89,45 @@ fn which_powershell() -> Result<String, ()> {
             .is_ok()
         {
             return Ok(path.to_string());
+        }
+    }
+
+    Err(())
+}
+
+#[cfg(windows)]
+fn which_gitbash() -> Result<String, ()> {
+    // Git Bash 常见安装路径
+    let userprofile = std::env::var("USERPROFILE").unwrap_or_default();
+    let gitbash_paths = vec![
+        "C:\\Program Files\\Git\\bin\\bash.exe".to_string(),
+        "C:\\Program Files (x86)\\Git\\bin\\bash.exe".to_string(),
+        format!("{}\\AppData\\Local\\Programs\\Git\\bin\\bash.exe", userprofile),
+    ];
+
+    // 检查路径是否存在
+    for path in gitbash_paths {
+        if std::path::Path::new(&path).exists() {
+            return Ok(path);
+        }
+    }
+
+    // 尝试从 PATH 环境变量查找
+    if let Ok(output) = std::process::Command::new("where")
+        .arg("bash.exe")
+        .output()
+    {
+        if output.status.success() {
+            if let Ok(stdout) = String::from_utf8(output.stdout) {
+                // 获取第一行路径
+                if let Some(first_line) = stdout.lines().next() {
+                    let path = first_line.trim();
+                    // 确保是 Git 安装的 bash
+                    if path.contains("Git") {
+                        return Ok(path.to_string());
+                    }
+                }
+            }
         }
     }
 

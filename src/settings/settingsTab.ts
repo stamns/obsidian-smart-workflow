@@ -694,6 +694,7 @@ export class AIFileNamerSettingTab extends PluginSettingTab {
         if (process.platform === 'win32') {
           dropdown.addOption('cmd', 'CMD (命令提示符)');
           dropdown.addOption('powershell', 'PowerShell');
+          dropdown.addOption('gitbash', 'Git Bash');
           dropdown.addOption('wsl', 'WSL (Windows Subsystem for Linux)');
         } else if (process.platform === 'darwin' || process.platform === 'linux') {
           dropdown.addOption('bash', 'Bash');

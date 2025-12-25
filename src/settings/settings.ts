@@ -28,7 +28,7 @@ export interface SavedTerminalState {
  */
 export interface TerminalSettings {
   // 默认 Shell 程序类型
-  defaultShell: 'cmd' | 'powershell' | 'wsl' | 'bash' | 'zsh' | 'custom';
+  defaultShell: 'cmd' | 'powershell' | 'wsl' | 'gitbash' | 'bash' | 'zsh' | 'custom';
 
   // 自定义程序路径（当 defaultShell 为 'custom' 时使用）
   customShellPath: string;
