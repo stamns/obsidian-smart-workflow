@@ -70,7 +70,7 @@ For more details, see [Build Scripts Guide](./scripts/README.md).
 ## 📖 User Guide
 
 ### 1. Configure API
-Enter **Settings > AI File Namer**:
+Enter **Settings > General**:
 *   **API Endpoint**: Enter your API address (the plugin will automatically complete the path, like `/v1/chat/completions`).
 *   **API Key**: Enter your key.
 *   **Model**: Enter the model name (e.g., `gpt-4o`, `deepseek-chat`).

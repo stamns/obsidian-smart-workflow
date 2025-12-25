@@ -14,6 +14,7 @@ import { BinaryManager, BinaryManagerError, BinaryErrorCode } from './binaryMana
 import { TerminalSettings } from '../../settings/settings';
 import { TerminalInstance } from './terminalInstance';
 import { debugLog, debugWarn, errorLog } from '../../utils/logger';
+import { t } from '../../i18n';
 
 /**
  * 服务器信息
@@ -21,16 +22,6 @@ import { debugLog, debugWarn, errorLog } from '../../utils/logger';
 export interface ServerInfo {
   port: number;  // 监听端口
   pid: number;   // 进程 PID
-}
-
-/**
- * 保存的终端状态
- */
-export interface SavedTerminalState {
-  id: string;
-  title: string;
-  shellType: string;
-  cwd: string;
 }
 
 /**
@@ -133,12 +124,7 @@ export class TerminalService {
         const errorMessage = error instanceof Error ? error.message : String(error);
         errorLog('[TerminalService] 启动 PTY 服务器失败:', errorMessage);
         
-        new Notice(
-          '❌ PTY 服务器启动失败\n\n' +
-          `错误: ${errorMessage}\n` +
-          '请查看控制台获取详细信息',
-          0
-        );
+        new Notice(t('notices.ptyServerStartFailed'), 0);
       }
       
       throw error;
@@ -154,7 +140,7 @@ export class TerminalService {
   private async waitForServerPort(): Promise<number> {
     return new Promise((resolve, reject) => {
       if (!this.ptyServerProcess || !this.ptyServerProcess.stdout) {
-        reject(new Error('PTY 服务器进程未正确启动'));
+        reject(new Error(t('terminalService.processNotStarted')));
         return;
       }
 
@@ -163,7 +149,7 @@ export class TerminalService {
       const timeout = setTimeout(() => {
         this.ptyServerProcess?.stdout?.off('data', onData);
         
-        const errorMsg = '等待 PTY 服务器端口信息超时 (10秒)';
+        const errorMsg = t('terminalService.portInfoTimeout');
         errorLog('[TerminalService]', errorMsg);
         reject(new Error(errorMsg));
       }, 10000);
@@ -201,7 +187,7 @@ export class TerminalService {
       this.ptyServerProcess.on('exit', (code) => {
         clearTimeout(timeout);
         if (code !== 0 && code !== null) {
-          reject(new Error(`PTY 服务器启动失败，退出码: ${code}`));
+          reject(new Error(t('terminalService.startFailedWithCode', { code: String(code) })));
         }
       });
     });
@@ -230,9 +216,10 @@ export class TerminalService {
       
       if (isAbnormalExit) {
         new Notice(
-          `⚠️ PTY 服务器异常退出\n` +
-          `退出码: ${code}, 信号: ${signal || '无'}\n` +
-          `正在尝试自动重启...`,
+          t('notices.terminal.serverCrashed', { 
+            code: String(code), 
+            signal: signal || 'N/A' 
+          }),
           5000
         );
       }
@@ -250,26 +237,15 @@ export class TerminalService {
         setTimeout(() => {
           this.ensurePtyServer()
             .then(() => {
-              new Notice('✅ PTY 服务器已成功重启', 3000);
+              new Notice(t('notices.terminal.serverRestartSuccess'), 3000);
             })
             .catch(err => {
               errorLog('[TerminalService] 服务器重启失败:', err);
-              new Notice(
-                '❌ PTY 服务器重启失败\n' +
-                '请重新加载插件或查看控制台获取详细信息',
-                0
-              );
+              new Notice(t('notices.terminal.serverRestartFailed'), 0);
             });
         }, delay);
       } else {
-        new Notice(
-          '❌ PTY 服务器多次崩溃，已停止自动重启\n\n' +
-          '请尝试:\n' +
-          '1. 重新加载插件\n' +
-          '2. 检查系统日志\n' +
-          '3. 报告问题到 GitHub',
-          0
-        );
+        new Notice(t('notices.terminal.serverRestartFailed'), 0);
       }
     });
   }
@@ -379,12 +355,7 @@ export class TerminalService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errorLog('[TerminalService] 创建终端实例失败:', errorMessage);
       
-      new Notice(
-        '❌ 无法创建终端\n\n' +
-        `错误: ${errorMessage}\n` +
-        '请查看控制台获取详细信息',
-        5000
-      );
+      new Notice(t('notices.terminal.createFailed', { message: errorMessage }), 5000);
       
       throw error;
     }
@@ -477,26 +448,6 @@ export class TerminalService {
    */
   updateSettings(settings: TerminalSettings): void {
     this.settings = settings;
-  }
-
-  /**
-   * 保存终端状态（用于恢复）
-   * 
-   * @returns 保存的终端状态数组
-   */
-  saveTerminalStates(): SavedTerminalState[] {
-    // TODO: 实现终端状态保存
-    return [];
-  }
-
-  /**
-   * 恢复终端状态
-   * 
-   * @param states 保存的终端状态数组
-   */
-  async restoreTerminalStates(states: SavedTerminalState[]): Promise<void> {
-    // TODO: 实现终端状态恢复
-    debugLog('[TerminalService] 恢复终端状态:', states);
   }
 
   /**

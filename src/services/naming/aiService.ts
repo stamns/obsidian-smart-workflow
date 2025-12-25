@@ -1,6 +1,7 @@
 import { App, requestUrl, RequestUrlResponse } from 'obsidian';
-import { AIFileNamerSettings, APIConfig, BASE_PROMPT_TEMPLATE } from '../../settings/settings';
+import { SmartWorkflowSettings, APIConfig, BASE_PROMPT_TEMPLATE } from '../../settings/settings';
 import { debugLog } from '../../utils/logger';
+import { t } from '../../i18n';
 
 /**
  * API 响应数据接口
@@ -23,7 +24,7 @@ interface APIResponse {
 export class AIService {
   constructor(
     private app: App,
-    private settings: AIFileNamerSettings
+    private settings: SmartWorkflowSettings
   ) { }
 
   /**
@@ -44,11 +45,11 @@ export class AIService {
 
     // 验证配置
     if (!config.apiKey || config.apiKey.trim() === '') {
-      throw new Error('API Key 未配置，请在设置中配置 API Key');
+      throw new Error(t('aiService.apiKeyNotConfigured'));
     }
 
     if (!config.endpoint || config.endpoint.trim() === '') {
-      throw new Error('API 端点未配置');
+      throw new Error(t('aiService.endpointNotConfigured'));
     }
 
     // 准备 prompt（智能处理内容长度，避免超出 token 限制）
@@ -94,7 +95,7 @@ export class AIService {
 
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          reject(new Error(`请求超时 (超过 ${timeoutMs / 1000} 秒)`));
+          reject(new Error(t('aiService.requestTimeout', { seconds: String(timeoutMs / 1000) })));
         }, timeoutMs);
       });
 
@@ -117,25 +118,25 @@ export class AIService {
 
       // 检查响应状态
       if (response.status !== 200) {
-        let errorMessage = `API 请求失败 (${response.status})`;
+        let errorMessage = t('aiService.requestFailed', { status: String(response.status) });
 
         // 添加请求的 URL 信息
-        errorMessage += `\n请求地址: ${fullEndpoint}`;
+        errorMessage += `\nRequest URL: ${fullEndpoint}`;
 
         // 404 错误的特殊提示
         if (response.status === 404) {
-          errorMessage += `\n提示: 端点地址可能不正确，请检查 API 端点配置`;
+          errorMessage += `\n${t('aiService.requestFailedHint')}`;
         }
 
         // 401 错误的特殊提示
         if (response.status === 401) {
-          errorMessage += `\n提示: API Key 可能无效或已过期，请检查 API Key 配置`;
+          errorMessage += `\n${t('aiService.invalidApiKeyHint')}`;
         }
 
         try {
           const errorData = response.json;
           if (errorData && errorData.error && errorData.error.message) {
-            errorMessage += `\n错误详情: ${errorData.error.message}`;
+            errorMessage += `\n${t('aiService.errorDetails', { message: errorData.error.message })}`;
           }
         } catch {
           // 无法解析错误信息，使用默认消息
@@ -149,7 +150,7 @@ export class AIService {
       if (error instanceof Error) {
         throw error;
       }
-      throw new Error(`网络请求失败: ${String(error)}`);
+      throw new Error(t('aiService.networkError', { message: String(error) }));
     }
   }
 
@@ -161,12 +162,12 @@ export class AIService {
   private parseResponse(response: APIResponse): string {
     try {
       if (!response || !response.choices || response.choices.length === 0) {
-        throw new Error('API 响应格式错误：缺少 choices 字段');
+        throw new Error(t('aiService.missingChoices'));
       }
 
       const choice = response.choices[0];
       if (!choice.message || !choice.message.content) {
-        throw new Error('API 响应格式错误：缺少 message.content 字段');
+        throw new Error(t('aiService.missingContent'));
       }
 
       let content = choice.message.content.trim();
@@ -228,7 +229,7 @@ export class AIService {
       fileName = fileName.trim();
 
       if (!fileName) {
-        throw new Error('AI 返回的文件名为空');
+        throw new Error(t('aiService.emptyFileName'));
       }
 
       return fileName;
@@ -236,7 +237,7 @@ export class AIService {
       if (error instanceof Error) {
         throw error;
       }
-      throw new Error('无法解析 API 响应');
+      throw new Error(t('aiService.parseError'));
     }
   }
 
@@ -275,7 +276,7 @@ export class AIService {
     const config = this.settings.configs.find(c => c.id === id);
 
     if (!config) {
-      throw new Error(`配置 "${id}" 不存在`);
+      throw new Error(t('aiService.configNotFound', { id }));
     }
 
     return config;
@@ -312,7 +313,7 @@ export class AIService {
     let normalized = url.trim();
 
     if (!normalized) {
-      throw new Error('API 端点不能为空');
+      throw new Error(t('aiService.endpointEmpty'));
     }
 
     // 检查并添加协议
@@ -376,11 +377,11 @@ export class AIService {
 
     // 验证配置
     if (!config.apiKey || config.apiKey.trim() === '') {
-      throw new Error('API Key 未配置，请在设置中配置 API Key');
+      throw new Error(t('aiService.apiKeyNotConfigured'));
     }
 
     if (!config.endpoint || config.endpoint.trim() === '') {
-      throw new Error('API 端点未配置');
+      throw new Error(t('aiService.endpointNotConfigured'));
     }
 
     // 构造极简请求
@@ -397,7 +398,7 @@ export class AIService {
 
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          reject(new Error(`请求超时 (超过 ${timeoutMs / 1000} 秒)`));
+          reject(new Error(t('aiService.requestTimeout', { seconds: String(timeoutMs / 1000) })));
         }, timeoutMs);
       });
 
@@ -418,9 +419,9 @@ export class AIService {
       const response = await Promise.race([requestPromise, timeoutPromise]) as RequestUrlResponse;
 
       if (response.status !== 200) {
-        let errorMessage = `API 请求失败 (${response.status})`;
-        if (response.status === 401) errorMessage += ': API Key 无效';
-        else if (response.status === 404) errorMessage += ': 端点地址不可用';
+        let errorMessage = t('aiService.requestFailed', { status: String(response.status) });
+        if (response.status === 401) errorMessage += ': ' + t('aiService.testApiKeyInvalid');
+        else if (response.status === 404) errorMessage += ': ' + t('aiService.testEndpointNotFound');
 
         try {
           const errorData = response.json;
@@ -439,7 +440,7 @@ export class AIService {
       if (error instanceof Error) {
         throw error;
       }
-      throw new Error(`网络请求失败: ${String(error)}`);
+      throw new Error(t('aiService.networkError', { message: String(error) }));
     }
   }
 }

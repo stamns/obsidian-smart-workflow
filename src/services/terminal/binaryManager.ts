@@ -16,6 +16,7 @@ import * as https from 'https';
 import { debugLog, errorLog } from '../../utils/logger';
 import * as http from 'http';
 import { Notice } from 'obsidian';
+import { t } from '../../i18n';
 
 /**
  * 平台信息
@@ -113,7 +114,7 @@ export class BinaryManager {
       } else if (!fs.existsSync(binaryInfo.path)) {
         throw new BinaryManagerError(
           BinaryErrorCode.BINARY_MISSING,
-          `内置二进制文件缺失: ${binaryInfo.path}\n请重新安装插件`,
+          t('binaryManager.builtinBinaryMissing', { path: binaryInfo.path }),
           this.getDownloadUrl(platform)
         );
       }
@@ -131,7 +132,7 @@ export class BinaryManager {
       // 包装未知错误
       throw new BinaryManagerError(
         BinaryErrorCode.BINARY_MISSING,
-        `无法获取二进制文件: ${error instanceof Error ? error.message : String(error)}`
+        t('binaryManager.cannotGetBinary', { message: error instanceof Error ? error.message : String(error) })
       );
     }
   }
@@ -148,12 +149,12 @@ export class BinaryManager {
     
     // 验证平台
     if (platform !== 'win32' && platform !== 'darwin' && platform !== 'linux') {
-      throw new Error(`不支持的操作系统: ${platform}`);
+      throw new Error(t('binaryManager.unsupportedOS', { platform }));
     }
     
     // 验证架构
     if (arch !== 'x64' && arch !== 'arm64') {
-      throw new Error(`不支持的 CPU 架构: ${arch}`);
+      throw new Error(t('binaryManager.unsupportedArch', { arch }));
     }
     
     return {
@@ -210,7 +211,7 @@ export class BinaryManager {
       } catch (error) {
         throw new BinaryManagerError(
           BinaryErrorCode.DISK_SPACE_ERROR,
-          `无法创建缓存目录: ${error instanceof Error ? error.message : String(error)}`
+          t('binaryManager.cannotCreateCacheDir', { message: error instanceof Error ? error.message : String(error) })
         );
       }
     }
@@ -222,7 +223,7 @@ export class BinaryManager {
     debugLog('[BinaryManager] 下载 URL:', binaryUrl);
     
     // 显示下载通知
-    const notice = new Notice('正在下载 PTY 服务器二进制文件...', 0);
+    const notice = new Notice(t('binaryManager.downloadingBinary'), 0);
     
     try {
       let lastError: Error | null = null;
@@ -234,8 +235,11 @@ export class BinaryManager {
           // 下载二进制文件
           await this.downloadFile(binaryUrl, targetPath, (downloaded, total, percentage) => {
             notice.setMessage(
-              `正在下载 PTY 服务器二进制文件...\n` +
-              `进度: ${percentage.toFixed(1)}% (${this.formatBytes(downloaded)} / ${this.formatBytes(total)})`
+              t('binaryManager.downloadProgress', {
+                percentage: percentage.toFixed(1),
+                downloaded: this.formatBytes(downloaded),
+                total: this.formatBytes(total)
+              })
             );
           });
           
@@ -250,13 +254,13 @@ export class BinaryManager {
             fs.unlinkSync(targetPath);
             throw new BinaryManagerError(
               BinaryErrorCode.CHECKSUM_FAILED,
-              '文件校验失败，文件可能已损坏'
+              t('binaryManager.checksumFailed')
             );
           }
           
           // 下载成功
           notice.hide();
-          new Notice('✅ PTY 服务器下载完成！', 3000);
+          new Notice(t('binaryManager.downloadComplete'), 3000);
           debugLog('[BinaryManager] 下载成功');
           return;
           
@@ -271,7 +275,7 @@ export class BinaryManager {
           
           // 如果还有重试机会，等待后重试
           if (attempt < this.maxRetries) {
-            notice.setMessage(`下载失败，正在重试 (${attempt}/${this.maxRetries})...`);
+            notice.setMessage(t('binaryManager.downloadRetrying', { current: String(attempt), max: String(this.maxRetries) }));
             await new Promise(resolve => setTimeout(resolve, this.retryDelay));
           }
         }
@@ -281,9 +285,7 @@ export class BinaryManager {
       notice.hide();
       throw new BinaryManagerError(
         BinaryErrorCode.NETWORK_ERROR,
-        `下载失败: ${lastError?.message || '未知错误'}\n` +
-        `已重试 ${this.maxRetries} 次\n` +
-        `请检查网络连接或手动下载`,
+        t('binaryManager.downloadFailed', { message: lastError?.message || 'Unknown error', retries: String(this.maxRetries) }),
         binaryUrl
       );
       
@@ -322,7 +324,7 @@ export class BinaryManager {
         if (response.statusCode === 301 || response.statusCode === 302) {
           const redirectUrl = response.headers.location;
           if (!redirectUrl) {
-            reject(new Error('重定向 URL 为空'));
+            reject(new Error(t('binaryManager.redirectUrlEmpty')));
             return;
           }
           debugLog('[BinaryManager] 重定向到:', redirectUrl);
@@ -372,7 +374,7 @@ export class BinaryManager {
       
       request.setTimeout(30000, () => {
         request.destroy();
-        reject(new Error('下载超时'));
+        reject(new Error(t('binaryManager.downloadTimeout')));
       });
     });
   }
@@ -389,7 +391,7 @@ export class BinaryManager {
       
       const request = protocol.get(url, (response: http.IncomingMessage) => {
         if (response.statusCode !== 200) {
-          reject(new Error(`无法下载校验和文件: HTTP ${response.statusCode}`));
+          reject(new Error(t('binaryManager.checksumDownloadFailed', { status: String(response.statusCode) })));
           return;
         }
         
@@ -411,7 +413,7 @@ export class BinaryManager {
       
       request.setTimeout(10000, () => {
         request.destroy();
-        reject(new Error('下载校验和文件超时'));
+        reject(new Error(t('binaryManager.checksumDownloadTimeout')));
       });
     });
   }
@@ -470,8 +472,10 @@ export class BinaryManager {
       errorLog('[BinaryManager] 设置可执行权限失败:', error);
       throw new BinaryManagerError(
         BinaryErrorCode.PERMISSION_ERROR,
-        `无法设置文件权限: ${error instanceof Error ? error.message : String(error)}\n` +
-        `请手动执行: chmod +x ${filePath}`
+        t('binaryManager.cannotSetPermission', { 
+          message: error instanceof Error ? error.message : String(error),
+          path: filePath
+        })
       );
     }
   }

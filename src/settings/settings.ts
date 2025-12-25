@@ -14,16 +14,6 @@ export interface APIConfig {
 }
 
 /**
- * 终端保存状态接口
- */
-export interface SavedTerminalState {
-  id: string;                    // 终端实例 ID
-  title: string;                 // 终端标题
-  shellType: string;             // Shell 类型
-  cwd: string;                   // 工作目录
-}
-
-/**
  * 终端设置接口
  */
 export interface TerminalSettings {
@@ -85,12 +75,6 @@ export interface TerminalSettings {
 
   // 终端面板默认高度（像素）
   defaultHeight: number;
-
-  // 是否在插件加载时恢复终端
-  restoreTerminalsOnLoad: boolean;
-
-  // 保存的终端状态
-  savedTerminals: SavedTerminalState[];
 }
 
 /**
@@ -114,7 +98,7 @@ export interface FeatureVisibilitySettings {
 /**
  * 插件设置接口
  */
-export interface AIFileNamerSettings {
+export interface SmartWorkflowSettings {
   configs: APIConfig[];          // 多配置列表
   activeConfigId: string;        // 当前活动配置 ID
   defaultPromptTemplate: string; // 默认 Prompt 模板
@@ -191,8 +175,6 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   preferredRenderer: 'canvas',
   scrollback: 1000,
   defaultHeight: 300,
-  restoreTerminalsOnLoad: false,
-  savedTerminals: [],
   backgroundImageOpacity: 0.5,
   backgroundImageSize: 'cover',
   backgroundImagePosition: 'center',
@@ -220,11 +202,11 @@ export const DEFAULT_FEATURE_VISIBILITY: FeatureVisibilitySettings = {
 /**
  * 默认设置
  */
-export const DEFAULT_SETTINGS: AIFileNamerSettings = {
+export const DEFAULT_SETTINGS: SmartWorkflowSettings = {
   configs: [
     {
       id: 'default',
-      name: '默认配置',
+      name: 'Default',
       endpoint: 'https://api.openai.com/v1/chat/completions',
       apiKey: '',
       model: 'gpt-3.5-turbo',

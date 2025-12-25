@@ -68,7 +68,7 @@ npm run install:dev
 ## 📖 使用指南
 
 ### 1. 配置 API
-进入 **设置 > AI File Namer**：
+进入 **设置 > 常规设置**：
 *   **API 端点**：输入您的 API 地址（插件会自动补全路径，如 `/v1/chat/completions`）。
 *   **API Key**：输入您的密钥。
 *   **模型**：输入模型名称（如 `gpt-4o`, `deepseek-chat`）。

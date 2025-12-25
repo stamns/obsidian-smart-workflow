@@ -1,18 +1,19 @@
 import { Plugin, TFile, Menu, MarkdownView, WorkspaceLeaf } from 'obsidian';
-import { AIFileNamerSettings, DEFAULT_SETTINGS } from './settings/settings';
-import { AIFileNamerSettingTab } from './settings/settingsTab';
+import { SmartWorkflowSettings, DEFAULT_SETTINGS } from './settings/settings';
+import { SmartWorkflowSettingTab } from './settings/settingsTab';
 import { AIService } from './services/naming/aiService';
 import { FileNameService, RenameResult } from './services/naming/fileNameService';
 import { NoticeHelper } from './ui/noticeHelper';
 import { TerminalService } from './services/terminal/terminalService';
 import { TerminalView, TERMINAL_VIEW_TYPE } from './ui/terminal/terminalView';
 import { setDebugMode, debugLog, errorLog } from './utils/logger';
+import { i18n, t } from './i18n';
 
 /**
  * AI 文件名生成器插件主类
  */
-export default class AIFileNamerPlugin extends Plugin {
-  settings: AIFileNamerSettings;
+export default class SmartWorkflowPlugin extends Plugin {
+  settings: SmartWorkflowSettings;
   aiService: AIService;
   fileNameService: FileNameService;
   terminalService: TerminalService;
@@ -23,7 +24,10 @@ export default class AIFileNamerPlugin extends Plugin {
    * 插件加载时调用
    */
   async onload() {
-    debugLog('加载 AI File Namer 插件');
+    // 初始化 i18n 服务
+    i18n.initialize();
+    
+    debugLog(t('plugin.loadingMessage'));
 
     // 加载设置
     await this.loadSettings();
@@ -51,14 +55,14 @@ export default class AIFileNamerPlugin extends Plugin {
 
     // 添加侧边栏图标按钮 - AI 文件名生成
     if (this.settings.featureVisibility.aiNaming.showInRibbon) {
-      this.addRibbonIcon('sparkles', 'AI 文件名生成', async () => {
+      this.addRibbonIcon('sparkles', t('ribbon.aiFilenameTooltip'), async () => {
         await this.handleGenerateCommand();
       });
     }
 
     // 添加侧边栏图标按钮 - 打开终端
     if (this.settings.featureVisibility.terminal.showInRibbon) {
-      this.addRibbonIcon('terminal-square', '打开终端', async () => {
+      this.addRibbonIcon('terminal-square', t('ribbon.terminalTooltip'), async () => {
         await this.activateTerminalView();
       });
     }
@@ -67,7 +71,7 @@ export default class AIFileNamerPlugin extends Plugin {
     if (this.settings.featureVisibility.aiNaming.showInCommandPalette) {
       this.addCommand({
         id: 'generate-ai-filename',
-        name: '生成 AI 文件名',
+        name: t('commands.generateAiFilename'),
         callback: async () => {
           await this.handleGenerateCommand();
         }
@@ -78,7 +82,7 @@ export default class AIFileNamerPlugin extends Plugin {
     if (this.settings.featureVisibility.terminal.showInCommandPalette) {
       this.addCommand({
         id: 'open-terminal',
-        name: '打开终端',
+        name: t('commands.openTerminal'),
         callback: async () => {
           await this.activateTerminalView();
         }
@@ -91,7 +95,7 @@ export default class AIFileNamerPlugin extends Plugin {
         this.app.workspace.on('editor-menu', (menu: Menu, _editor, _view) => {
           menu.addItem((item) => {
             item
-              .setTitle('生成 AI 文件名')
+              .setTitle(t('menu.generateAiFilename'))
               .setIcon('sparkles')
               .onClick(async () => {
                 await this.handleGenerateCommand();
@@ -108,7 +112,7 @@ export default class AIFileNamerPlugin extends Plugin {
           if (file instanceof TFile) {
             menu.addItem((item) => {
               item
-                .setTitle('生成 AI 文件名')
+                .setTitle(t('menu.generateAiFilename'))
                 .setIcon('sparkles')
                 .onClick(async () => {
                   await this.handleGenerateForFile(file);
@@ -120,7 +124,7 @@ export default class AIFileNamerPlugin extends Plugin {
     }
 
     // 添加设置标签页
-    this.addSettingTab(new AIFileNamerSettingTab(this.app, this));
+    this.addSettingTab(new SmartWorkflowSettingTab(this.app, this));
 
     // 监听文件切换，清理不属于当前文件的动画效果
     this.registerEvent(
@@ -129,32 +133,13 @@ export default class AIFileNamerPlugin extends Plugin {
       })
     );
 
-    // 恢复终端状态（如果启用）
-    if (this.settings.terminal.restoreTerminalsOnLoad && 
-        this.settings.terminal.savedTerminals.length > 0) {
-      try {
-        await this.terminalService.restoreTerminalStates(
-          this.settings.terminal.savedTerminals
-        );
-        
-        // 如果恢复了终端，自动打开终端面板
-        await this.activateTerminalView();
-      } catch (error) {
-        errorLog('恢复终端状态失败:', error);
-        NoticeHelper.error('恢复终端状态失败，请手动创建新终端');
-      }
-    }
-
     // 启动 PTY 服务器
     try {
       await this.terminalService.ensurePtyServer();
       debugLog('[Plugin] PTY 服务器已启动');
     } catch (error) {
       errorLog('[Plugin] 启动 PTY 服务器失败:', error);
-      NoticeHelper.error(
-        '❌ PTY 服务器启动失败\n' +
-        '请查看控制台获取详细错误信息'
-      );
+      NoticeHelper.error(t('notices.ptyServerStartFailed'));
     }
   }
 
@@ -187,7 +172,7 @@ export default class AIFileNamerPlugin extends Plugin {
   async handleGenerateCommand() {
     const file = this.app.workspace.getActiveFile();
     if (!file) {
-      NoticeHelper.error('没有打开的文件');
+      NoticeHelper.error(t('notices.noOpenFile'));
       return;
     }
     await this.handleGenerateForFile(file);
@@ -225,7 +210,7 @@ export default class AIFileNamerPlugin extends Plugin {
     }
 
     try {
-      NoticeHelper.info('正在生成文件名...');
+      NoticeHelper.info(t('notices.generatingFilename'));
 
       const result: RenameResult = await this.fileNameService.generateAndRename(file);
 
@@ -237,10 +222,10 @@ export default class AIFileNamerPlugin extends Plugin {
       }
     } catch (error) {
       if (error instanceof Error) {
-        NoticeHelper.error(`操作失败: ${error.message}`);
+        NoticeHelper.error(t('notices.operationFailed', { message: error.message }));
         errorLog('AI 文件名生成错误:', error);
       } else {
-        NoticeHelper.error('操作失败: 未知错误');
+        NoticeHelper.error(t('notices.operationFailed', { message: '未知错误' }));
         errorLog('AI 文件名生成错误:', error);
       }
     } finally {
@@ -327,18 +312,7 @@ export default class AIFileNamerPlugin extends Plugin {
    * 插件卸载时调用
    */
   async onunload() {
-    debugLog('卸载 AI File Namer 插件');
-
-    // 保存终端状态（如果启用）
-    if (this.settings.terminal.restoreTerminalsOnLoad) {
-      try {
-        this.settings.terminal.savedTerminals = 
-          this.terminalService.saveTerminalStates();
-        await this.saveSettings();
-      } catch (error) {
-        errorLog('保存终端状态失败:', error);
-      }
-    }
+    debugLog(t('plugin.unloadingMessage'));
 
     // 清理所有终端
     try {

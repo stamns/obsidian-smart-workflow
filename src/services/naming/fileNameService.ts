@@ -1,8 +1,9 @@
 import { App, TFile } from 'obsidian';
 import { AIService } from './aiService';
 import { FileAnalyzer } from './fileAnalyzer';
-import { AIFileNamerSettings } from '../../settings/settings';
+import { SmartWorkflowSettings } from '../../settings/settings';
 import { debugLog, debugWarn } from '../../utils/logger';
+import { t } from '../../i18n';
 
 /**
  * 重命名结果接口
@@ -28,7 +29,7 @@ export class FileNameService {
   constructor(
     private app: App,
     private aiService: AIService,
-    private settings: AIFileNamerSettings
+    private settings: SmartWorkflowSettings
   ) {
     this.fileAnalyzer = new FileAnalyzer(app);
   }
@@ -105,7 +106,7 @@ export class FileNameService {
         renamed: false,
         oldName: currentFileName,
         newName: sanitizedFileName,
-        message: '当前文件名已经很合适，无需修改'
+        message: t('fileNameService.noChangeNeeded')
       };
     }
 
@@ -126,7 +127,7 @@ export class FileNameService {
       renamed: true,
       oldName: currentFileName,
       newName: finalFileName,
-      message: `文件已重命名为: ${finalFileName}`
+      message: t('fileNameService.fileRenamed', { fileName: finalFileName })
     };
   }
 
@@ -152,7 +153,7 @@ export class FileNameService {
 
     // 如果清理后为空，使用默认名称
     if (!sanitized) {
-      throw new Error('生成的文件名无效（清理后为空）');
+      throw new Error(t('fileNameService.invalidFileName'));
     }
 
     return sanitized;

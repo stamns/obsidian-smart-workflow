@@ -1,4 +1,5 @@
 import { Notice } from 'obsidian';
+import { t } from '../i18n';
 
 /**
  * 通知助手类
@@ -9,27 +10,27 @@ export class NoticeHelper {
    * 显示成功通知
    */
   static success(message: string, duration = 5000): void {
-    new Notice(`✅ ${message}`, duration);
+    new Notice(`✅ ${t('common.success')}: ${message}`, duration);
   }
 
   /**
    * 显示错误通知
    */
   static error(message: string, duration = 8000): void {
-    new Notice(`❌ ${message}`, duration);
+    new Notice(`❌ ${t('common.error')}: ${message}`, duration);
   }
 
   /**
    * 显示警告通知
    */
   static warning(message: string, duration = 6000): void {
-    new Notice(`⚠️ ${message}`, duration);
+    new Notice(`⚠️ ${t('common.warning')}: ${message}`, duration);
   }
 
   /**
    * 显示信息通知
    */
   static info(message: string, duration = 4000): void {
-    new Notice(`ℹ️ ${message}`, duration);
+    new Notice(`ℹ️ ${t('common.info')}: ${message}`, duration);
   }
 }

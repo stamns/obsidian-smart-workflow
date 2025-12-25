@@ -1,4 +1,4 @@
-/* Obsidian AI File Namer Styles */
+/* Obsidian Smart Workflow Styles */
 
 /* Animation for the title text effect - Shimmer effect */
 @keyframes ai-shimmer {
@@ -36,7 +36,7 @@
 /* Settings Tab Navigation Styles */
 
 /* 头部容器 */
-.ai-file-namer-settings-header {
+.smart-workflow-settings-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -45,7 +45,7 @@
 }
 
 /* 标签页导航栏 */
-.ai-file-namer-tabs {
+.smart-workflow-tabs {
     display: flex;
     border-bottom: 1px solid var(--background-modifier-border);
     margin-bottom: 8px;
@@ -53,7 +53,7 @@
 }
 
 /* 单个标签 */
-.ai-file-namer-tab {
+.smart-workflow-tab {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -71,25 +71,25 @@
 }
 
 /* 标签悬停效果 */
-.ai-file-namer-tab:hover {
+.smart-workflow-tab:hover {
     color: var(--text-normal);
     background-color: var(--background-modifier-hover);
 }
 
 /* 激活的标签 */
-.ai-file-namer-tab.active {
+.smart-workflow-tab.active {
     color: var(--text-accent);
     border-bottom-color: var(--text-accent);
 }
 
 /* 标签图标 */
-.ai-file-namer-tab-icon {
+.smart-workflow-tab-icon {
     font-size: 14px;
     line-height: 1;
 }
 
 /* 内容区域 */
-.ai-file-namer-content {
+.smart-workflow-content {
     padding: 0 4px;
     animation: fadeIn 0.2s ease;
 }
@@ -108,7 +108,7 @@
 
 /* 响应式布局 */
 @media screen and (max-width: 1024px) {
-    .ai-file-namer-settings-header {
+    .smart-workflow-settings-header {
         flex-direction: column;
         align-items: center;
         justify-content: center;
