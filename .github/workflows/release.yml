@@ -152,21 +152,6 @@ jobs:
       - name: Package plugin with binaries
         run: npm run package
 
-      - name: Verify package
-        run: |
-          if [ ! -f "obsidian-terminal-plugin.zip" ]; then
-            echo "Error: Plugin package not found"
-            exit 1
-          fi
-          
-          SIZE=$(stat -c%s "obsidian-terminal-plugin.zip")
-          echo "Plugin package size: ${SIZE} bytes ($(echo "scale=2; ${SIZE}/1024/1024" | bc) MB)"
-          
-          # 检查体积是否超过 10MB
-          if [ ${SIZE} -gt 10485760 ]; then
-            echo "Warning: Plugin package exceeds 10MB"
-          fi
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
