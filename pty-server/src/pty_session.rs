@@ -67,10 +67,25 @@ impl PtySession {
             .unwrap_or_else(|| "xterm-256color".to_string());
         cmd.env("TERM", term_value);
         
+        // 设置 UTF-8 locale 环境变量，确保中文等非 ASCII 字符正确显示
+        // 优先使用用户传入的值，其次使用系统环境变量，最后使用 UTF-8 默认值
+        let locale_vars = ["LANG", "LC_ALL", "LC_CTYPE"];
+        for var in &locale_vars {
+            let value = env
+                .and_then(|e| e.get(*var).cloned())
+                .or_else(|| std::env::var(*var).ok())
+                .unwrap_or_else(|| {
+                    // macOS/Linux 默认使用 en_US.UTF-8，确保 UTF-8 编码
+                    "en_US.UTF-8".to_string()
+                });
+            cmd.env(*var, value);
+        }
+        
         // 设置其他自定义环境变量
         if let Some(env_vars) = env {
             for (key, value) in env_vars {
-                if key != "TERM" {  // TERM 已经处理过了
+                // 跳过已处理的环境变量
+                if key != "TERM" && !locale_vars.contains(&key.as_str()) {
                     cmd.env(key, value);
                 }
             }
