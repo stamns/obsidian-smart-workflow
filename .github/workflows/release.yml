@@ -149,14 +149,40 @@ jobs:
       - name: Build plugin
         run: npm run build
 
-      - name: Package plugin with binaries
-        run: npm run package:zip
+      - name: Create plugin package directory
+        run: |
+          mkdir -p plugin-package/binaries
+          
+          # 复制核心文件
+          cp main.js plugin-package/
+          cp manifest.json plugin-package/
+          cp styles.css plugin-package/
+          
+          # 复制内置平台的二进制文件（覆盖 95% 用户）
+          cp binaries/pty-server-win32-x64.exe plugin-package/binaries/
+          cp binaries/pty-server-win32-x64.exe.sha256 plugin-package/binaries/
+          cp binaries/pty-server-darwin-arm64 plugin-package/binaries/
+          cp binaries/pty-server-darwin-arm64.sha256 plugin-package/binaries/
+          cp binaries/pty-server-linux-x64 plugin-package/binaries/
+          cp binaries/pty-server-linux-x64.sha256 plugin-package/binaries/
+          
+          # 设置可执行权限
+          chmod +x plugin-package/binaries/pty-server-darwin-arm64
+          chmod +x plugin-package/binaries/pty-server-linux-x64
+          
+          # 创建 ZIP 包
+          cd plugin-package
+          zip -r ../obsidian-smart-workflow.zip .
+          cd ..
+          
+          echo "📦 插件包创建完成"
+          ls -lh obsidian-smart-workflow.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            obsidian-terminal-plugin.zip
+            obsidian-smart-workflow.zip
             main.js
             manifest.json
             styles.css
@@ -176,19 +202,26 @@ jobs:
             ## 安装说明
             
             ### 方式 1: 使用插件包（推荐）
-            下载 `obsidian-terminal-plugin.zip`，解压到 Obsidian 插件目录。
+            下载 `obsidian-smart-workflow.zip`，解压到 Obsidian 插件目录。
+            
+            包含内容：
+            - 核心文件：`main.js`, `manifest.json`, `styles.css`
+            - 内置平台二进制文件（覆盖 95% 用户）：
+              - Windows x64
+              - macOS ARM64 (Apple Silicon)
+              - Linux x64
             
             ### 方式 2: 手动安装
             1. 下载 `main.js`, `manifest.json`, `styles.css`
-            2. 如果你的平台是 Windows x64、macOS ARM64 或 Linux x64，二进制文件已内置
-            3. 其他平台会在首次启动时自动下载对应的二进制文件
+            2. 放到 Obsidian 插件目录
+            3. 如果你的平台是 macOS Intel 或 Linux ARM64，插件会在首次启动时自动下载对应的二进制文件
             
             ## 支持的平台
-            - ✅ Windows x64
-            - ✅ macOS ARM64 (Apple Silicon)
-            - ✅ macOS x64 (Intel)
-            - ✅ Linux x64
-            - ✅ Linux ARM64
+            - ✅ Windows x64（内置）
+            - ✅ macOS ARM64 / Apple Silicon（内置）
+            - ✅ macOS x64 / Intel（自动下载）
+            - ✅ Linux x64（内置）
+            - ✅ Linux ARM64（自动下载）
             
             ## 二进制文件
             所有平台的 PTY 服务器二进制文件都已包含在此 Release 中，并附带 SHA256 校验和文件。
