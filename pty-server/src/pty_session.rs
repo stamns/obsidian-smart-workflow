@@ -87,15 +87,6 @@ impl PtySession {
         Ok(())
     }
     
-    /// 检查子进程是否仍在运行
-    pub fn is_running(&self) -> bool {
-        if let Ok(mut child) = self.child.lock() {
-            child.try_wait().ok().flatten().is_none()
-        } else {
-            false
-        }
-    }
-    
     /// 终止子进程
     pub fn kill(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(mut child) = self.child.lock() {
