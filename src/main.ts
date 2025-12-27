@@ -113,6 +113,10 @@ export default class SmartWorkflowPlugin extends Plugin {
   terminalService: TerminalService;
   selectionToolbarManager: SelectionToolbarManager;
   generatingFiles: Set<string> = new Set();
+  
+  // Ribbon 图标引用
+  private aiNamingRibbonIcon: HTMLElement | null = null;
+  private terminalRibbonIcon: HTMLElement | null = null;
 
 
   /**
@@ -157,14 +161,14 @@ export default class SmartWorkflowPlugin extends Plugin {
 
     // 添加侧边栏图标按钮 - AI 文件名生成
     if (this.settings.featureVisibility.aiNaming.showInRibbon) {
-      this.addRibbonIcon('sparkles', t('ribbon.aiFilenameTooltip'), async () => {
+      this.aiNamingRibbonIcon = this.addRibbonIcon('sparkles', t('ribbon.aiFilenameTooltip'), async () => {
         await this.handleGenerateCommand();
       });
     }
 
     // 添加侧边栏图标按钮 - 打开终端
     if (this.settings.featureVisibility.terminal.showInRibbon) {
-      this.addRibbonIcon('terminal-square', t('ribbon.terminalTooltip'), async () => {
+      this.terminalRibbonIcon = this.addRibbonIcon('terminal-square', t('ribbon.terminalTooltip'), async () => {
         await this.activateTerminalView();
       });
     }
@@ -902,6 +906,40 @@ export default class SmartWorkflowPlugin extends Plugin {
   updateSelectionToolbarSettings(): void {
     if (this.selectionToolbarManager) {
       this.selectionToolbarManager.updateSettings(this.settings.selectionToolbar);
+    }
+  }
+
+  /**
+   * 更新功能显示设置
+   * 供设置面板调用，实现 Ribbon 图标的实时显示/隐藏
+   */
+  updateFeatureVisibility(): void {
+    // 更新 AI 文件名生成 Ribbon 图标
+    if (this.settings.featureVisibility.aiNaming.showInRibbon) {
+      if (!this.aiNamingRibbonIcon) {
+        this.aiNamingRibbonIcon = this.addRibbonIcon('sparkles', t('ribbon.aiFilenameTooltip'), async () => {
+          await this.handleGenerateCommand();
+        });
+      }
+    } else {
+      if (this.aiNamingRibbonIcon) {
+        this.aiNamingRibbonIcon.remove();
+        this.aiNamingRibbonIcon = null;
+      }
+    }
+
+    // 更新终端 Ribbon 图标
+    if (this.settings.featureVisibility.terminal.showInRibbon) {
+      if (!this.terminalRibbonIcon) {
+        this.terminalRibbonIcon = this.addRibbonIcon('terminal-square', t('ribbon.terminalTooltip'), async () => {
+          await this.activateTerminalView();
+        });
+      }
+    } else {
+      if (this.terminalRibbonIcon) {
+        this.terminalRibbonIcon.remove();
+        this.terminalRibbonIcon = null;
+      }
     }
   }
 

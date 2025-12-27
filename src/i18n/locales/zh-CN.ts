@@ -289,7 +289,7 @@ export const zhCN: TranslationKeys = {
       debugMode: '调试模式',
       debugModeDesc: '启用后，在浏览器控制台显示详细的调试日志（包括 prompt 内容、目录分析结果等）',
       featureVisibility: '功能显示',
-      featureVisibilityDesc: '控制插件功能的显示位置，自定义您的工作流程。需要重新加载插件才能生效。',
+      featureVisibilityDesc: '控制插件功能的显示位置，自定义您的工作流程。',
       aiNamingVisibility: 'AI 文件名生成',
       aiNamingVisibilityDesc: '点击展开，配置 AI 文件名生成的显示位置',
       terminalVisibility: '本地终端',

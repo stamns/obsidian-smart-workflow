@@ -289,7 +289,7 @@ export const en: TranslationKeys = {
       debugMode: 'Debug Mode',
       debugModeDesc: 'When enabled, shows detailed debug logs in browser console (including prompt content, directory analysis results, etc.)',
       featureVisibility: 'Feature Visibility',
-      featureVisibilityDesc: 'Control where plugin features are displayed, customize your workflow. Requires plugin reload to take effect.',
+      featureVisibilityDesc: 'Control where plugin features are displayed, customize your workflow.',
       aiNamingVisibility: 'AI Filename Generation',
       aiNamingVisibilityDesc: 'Click to expand, configure display locations for AI filename generation',
       terminalVisibility: 'Local Terminal',

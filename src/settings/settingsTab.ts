@@ -2998,6 +2998,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.aiNaming.showInCommandPalette = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
 
         new Setting(contentEl)
@@ -3008,6 +3009,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.aiNaming.showInEditorMenu = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
 
         new Setting(contentEl)
@@ -3018,6 +3020,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.aiNaming.showInFileMenu = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
 
         new Setting(contentEl)
@@ -3028,6 +3031,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.aiNaming.showInRibbon = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
       }
     );
@@ -3047,6 +3051,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.terminal.showInCommandPalette = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
 
         new Setting(contentEl)
@@ -3057,6 +3062,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.terminal.showInRibbon = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
 
         new Setting(contentEl)
@@ -3067,6 +3073,7 @@ export class SmartWorkflowSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.featureVisibility.terminal.showInNewTab = value;
               await this.plugin.saveSettings();
+              this.plugin.updateFeatureVisibility();
             }));
       }
     );
