@@ -119,7 +119,7 @@ export const en: TranslationKeys = {
 
   settings: {
     tabs: {
-      general: 'General',
+      general: 'Model Services',
       naming: 'Features',
       writing: 'Writing',
       terminal: 'Terminal',
@@ -189,6 +189,10 @@ export const en: TranslationKeys = {
       modelsAdded: 'Added {{count}} models',
     },
     naming: {
+      modelBinding: 'Model Binding',
+      selectModel: 'Select Model',
+      selectModelDesc: 'Select provider and model for AI filename generation. Recommend using fast models like Flash or Air for better response speed.',
+      visibilitySettings: 'Visibility Settings',
       namingBehavior: 'Naming Behavior',
       useCurrentFilename: 'Use current filename as context',
       useCurrentFilenameDesc: 'When enabled, AI will reference the current filename for improvement; when disabled, generates title based on note content only',
@@ -269,6 +273,7 @@ export const en: TranslationKeys = {
       scrollbackDesc: 'Number of history output lines terminal can save (min 100, max 10000)',
       defaultHeight: 'Default Panel Height',
       defaultHeightDesc: 'Default height of terminal panel (pixels, min 100, max 1000)',
+      visibilitySettings: 'Visibility Settings',
       pathValid: '✅ Path is valid',
       pathInvalid: '⚠️ Warning: Path does not exist or is inaccessible, terminal may fail to start',
     },
@@ -552,6 +557,7 @@ export const en: TranslationKeys = {
       showDelayDesc: 'Delay before showing the toolbar after selection (0-1000ms)',
       buttonConfig: 'Button Configuration',
       buttonConfigDesc: 'Drag to reorder buttons, toggle enable/disable, and set whether to show text labels',
+      enabledShort: 'On',
       showLabel: 'Label',
     },
   },
@@ -567,17 +573,20 @@ export const en: TranslationKeys = {
       expand: 'Expand',
       continue: 'Continue',
     },
-    // Action bar buttons
+    // Diff
     actions: {
-      accept: 'Accept',
-      acceptTooltip: 'Replace original text with polished version',
-      reject: 'Keep Original',
-      rejectTooltip: 'Dismiss and keep original text',
-      merge: 'Merge',
-      mergeTooltip: 'Append polished text below original',
-      retry: 'Retry',
-      retryTooltip: 'Try again',
-      cancel: 'Cancel',
+      // Diff actions
+      acceptIncoming: 'Accept Incoming',
+      acceptCurrent: 'Accept Current',
+      acceptBoth: 'Accept Both',
+      undo: 'Undo',
+      acceptAll: 'Accept All',
+      acceptAllTooltip: 'Mark all blocks as accepting AI changes',
+      rejectAll: 'Reject All',
+      rejectAllTooltip: 'Mark all blocks as keeping original content',
+      reset: 'Reset',
+      apply: 'Hold to Apply',
+      applyTooltip: 'Hold to apply current decisions and close',
     },
     // Status messages
     status: {
@@ -586,6 +595,18 @@ export const en: TranslationKeys = {
       complete: 'Complete',
       error: 'Error',
       editing: 'Editing',
+      computing: 'Computing diff...',
+    },
+    // Progress messages
+    progress: {
+      resolved: '{{resolved}}/{{total}} resolved',
+      noChanges: 'No changes',
+    },
+    // Decision labels
+    decisions: {
+      acceptedIncoming: 'Accepted Incoming',
+      keptCurrent: 'Kept Current',
+      mergedBoth: 'Merged Both',
     },
     // Error messages
     errors: {
@@ -597,6 +618,9 @@ export const en: TranslationKeys = {
       streamInterrupted: 'Stream interrupted: {{reason}}',
       streamInterruptedWithReason: 'Stream interrupted: {{reason}}',
       invalidResponse: 'Invalid AI response',
+      fileNotFound: 'Source file not found',
+      editorNotFound: 'Source editor not found',
+      applyFailed: 'Failed to apply changes',
     },
     // Settings
     settings: {
@@ -606,8 +630,9 @@ export const en: TranslationKeys = {
       enabledDesc: 'Show writing menu in selection toolbar',
       polishEnabled: 'Polish',
       polishEnabledDesc: 'Enable text polishing feature',
-      providerBinding: 'AI Provider',
-      providerBindingDesc: 'Select provider and model for writing features',
+      modelBinding: 'Model Binding',
+      selectModel: 'Select Model',
+      selectModelDesc: 'Select provider and model for writing features',
       promptTemplate: 'Polish Prompt Template',
       promptTemplateDesc: 'Customize the prompt sent to AI for polishing. Use {{content}} for selected text.',
       resetPrompt: 'Reset to Default',
@@ -617,10 +642,25 @@ export const en: TranslationKeys = {
       acceptHint: 'Enter to accept',
       rejectHint: 'Esc to keep original',
       mergeHint: 'Ctrl+M to merge',
+      applyHint: 'Enter or Cmd/Ctrl+Enter to apply',
+      closeHint: 'Esc to close',
     },
     // Thinking content
     thinking: {
       title: 'AI Thinking Process',
+    },
+    // Diff view
+    diff: {
+      original: 'Original',
+      result: 'AI Result',
+    },
+    // Selection group
+    selectionGroup: {
+      title: 'Selection {{index}}',
+    },
+    // Apply view
+    applyView: {
+      title: 'Writing Polish',
     },
   },
 };

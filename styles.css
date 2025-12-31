@@ -972,212 +972,6 @@
   position: relative;
 }
 
-
-/* ==================== Writing Feature Styles ==================== */
-/* 写作功能样式 - 内联 Diff 视图 */
-/* Requirements: 3.3, 4.2, 4.3 */
-
-/* 内联 Diff 视图容器 */
-.writing-inline-diff {
-  position: relative;
-  margin: 8px 0;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  background: var(--background-primary);
-  overflow: hidden;
-}
-
-/* 顶部工具栏 */
-.writing-diff-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--background-secondary);
-  border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.writing-diff-status {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.writing-diff-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.writing-diff-actions button {
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  border: none;
-  transition: all 100ms ease-in-out;
-}
-
-.writing-diff-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 接受按钮 - 主要操作 */
-.writing-btn-accept {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.writing-btn-accept:hover:not(:disabled) {
-  background: var(--interactive-accent-hover);
-}
-
-/* 保留原文按钮 */
-.writing-btn-reject {
-  background: transparent;
-  border: 1px solid var(--background-modifier-border) !important;
-  color: var(--text-muted);
-}
-
-.writing-btn-reject:hover:not(:disabled) {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-/* 合并按钮 */
-.writing-btn-merge {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.writing-btn-merge:hover:not(:disabled) {
-  background: var(--background-modifier-active-hover);
-}
-
-/* Diff 内容容器 */
-.writing-diff-container {
-  padding: 0;
-}
-
-/* 加载状态 */
-.writing-diff-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 24px;
-  color: var(--text-muted);
-}
-
-.writing-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--background-modifier-border);
-  border-top-color: var(--interactive-accent);
-  border-radius: 50%;
-  animation: writing-spinner 1s linear infinite;
-}
-
-@keyframes writing-spinner {
-  to { transform: rotate(360deg); }
-}
-
-/* 原文区域（红色删除样式） */
-.writing-diff-original {
-  padding: 12px 16px;
-  background: rgba(255, 100, 100, 0.1);
-  border-left: 3px solid #e74c3c;
-  color: var(--text-normal);
-  text-decoration: line-through;
-  text-decoration-color: rgba(231, 76, 60, 0.6);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.6;
-  font-family: inherit;
-  font-size: inherit;
-}
-
-/* 深色主题适配 - 原文 */
-.theme-dark .writing-diff-original {
-  background: rgba(231, 76, 60, 0.15);
-}
-
-/* 结果区域（绿色新增样式） */
-.writing-diff-result {
-  padding: 12px 16px;
-  background: rgba(100, 200, 100, 0.1);
-  border-left: 3px solid #27ae60;
-  color: var(--text-normal);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.6;
-  font-family: inherit;
-  font-size: inherit;
-  outline: none;
-  min-height: 40px;
-}
-
-/* 深色主题适配 - 结果 */
-.theme-dark .writing-diff-result {
-  background: rgba(39, 174, 96, 0.15);
-}
-
-/* 可编辑状态 */
-.writing-diff-result[contenteditable="true"]:focus {
-  background: rgba(100, 200, 100, 0.15);
-}
-
-.theme-dark .writing-diff-result[contenteditable="true"]:focus {
-  background: rgba(39, 174, 96, 0.2);
-}
-
-/* 流式光标动画 */
-.writing-diff-result.streaming::after {
-  content: '▋';
-  color: var(--text-accent);
-  animation: writing-cursor-blink 1s infinite;
-}
-
-@keyframes writing-cursor-blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
-
-/* 错误状态 */
-.writing-diff-error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(231, 76, 60, 0.1);
-  color: var(--text-error);
-  font-size: 13px;
-}
-
-.writing-diff-error .writing-btn-retry {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  border: none;
-  flex-shrink: 0;
-}
-
-.writing-diff-error .writing-btn-retry:hover {
-  background: var(--interactive-accent-hover);
-}
-
-/* 写作动作容器 */
-.writing-action-container {
-  position: absolute;
-  z-index: 100;
-  width: 100%;
-  max-width: 800px;
-  box-sizing: border-box;
-}
-
 /* 子菜单样式 */
 .selection-toolbar-submenu-wrapper {
   position: relative;
@@ -1193,7 +987,7 @@
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   padding: 4px;
-  min-width: 80px;
+  width: fit-content;
   z-index: 1001;
 }
 
@@ -1201,46 +995,559 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* 子菜单项样式通过 toolbarView.ts 内联设置 */
-
 /* 下拉箭头图标 */
 .selection-toolbar-submenu-arrow svg {
   width: 12px;
   height: 12px;
 }
 
-/* 响应式适配 */
-@media (max-width: 600px) {
-  .writing-diff-toolbar {
-    flex-direction: column;
-    gap: 8px;
-    align-items: flex-start;
-  }
 
-  .writing-diff-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
+/* ==================== Writing Feature Styles ==================== */
+/* 写作功能样式 - WritingApplyView (Diff 块级决策系统) */
+
+/* CSS 变量定义 */
+.writing-apply-view {
+  --writing-current-color-rgb: 185, 28, 28; /* red-700 */
+  --writing-incoming-color-rgb: 4, 120, 87; /* emerald-700 */
+  
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-interface);
 }
 
-/* 滚动条样式 */
-.writing-diff-result::-webkit-scrollbar,
-.writing-diff-original::-webkit-scrollbar {
-  width: 6px;
+/* 工具栏样式 */
+.writing-apply-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--size-4-2) var(--size-4-3);
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  gap: var(--size-4-2);
+  flex-wrap: wrap;
 }
 
-.writing-diff-result::-webkit-scrollbar-track,
-.writing-diff-original::-webkit-scrollbar-track {
+.writing-apply-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  flex-shrink: 0;
+}
+
+/* 状态显示 */
+.writing-apply-status {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.writing-apply-status.error {
+  color: var(--text-error);
+}
+
+/* 进度显示 */
+.writing-apply-progress {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+/* 操作按钮组 */
+.writing-apply-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* 通用按钮样式 */
+.writing-apply-btn {
+  padding: var(--size-4-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  transition: all 100ms ease-in-out;
+  white-space: nowrap;
+}
+
+.writing-apply-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+.writing-apply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Apply & Close 按钮 (主要操作) */
+.writing-apply-btn.apply {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  font-weight: var(--font-medium);
+}
+
+.writing-apply-btn.apply:hover:not(:disabled) {
+  background: var(--interactive-accent-hover);
+}
+
+/* Accept All Incoming 按钮 */
+.writing-apply-btn.accept-all {
+  color: white;
+  background: rgba(var(--writing-incoming-color-rgb), 0.8);
+  border: none;
+}
+
+.writing-apply-btn.accept-all:hover:not(:disabled) {
+  background: rgba(var(--writing-incoming-color-rgb), 1);
+}
+
+/* Reject All 按钮 */
+.writing-apply-btn.reject-all {
+  color: white;
+  background: rgba(var(--writing-current-color-rgb), 0.8);
+  border: none;
+}
+
+.writing-apply-btn.reject-all:hover:not(:disabled) {
+  background: rgba(var(--writing-current-color-rgb), 1);
+}
+
+/* Reset 按钮 */
+.writing-apply-btn.reset {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+}
+
+.writing-apply-btn.reset:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* 长按确认按钮样式 */
+.writing-apply-btn.hold-to-confirm {
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.writing-apply-btn.hold-to-confirm .btn-text {
+  position: relative;
+  z-index: 1;
+}
+
+.writing-apply-btn.hold-to-confirm .hold-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0;
+  background: rgba(255, 255, 255, 0.3);
+  transition: none;
+  pointer-events: none;
+}
+
+.writing-apply-btn.hold-to-confirm.holding {
+  transform: scale(0.98);
+}
+
+.writing-apply-btn.hold-to-confirm.holding .hold-progress {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Close 按钮 */
+.writing-apply-btn.close {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+}
+
+.writing-apply-btn.close:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Diff 容器样式 */
+.writing-apply-diff-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--file-margins);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 内容区域最大宽度限制 */
+.writing-apply-diff-container > * {
+  max-width: var(--file-line-width);
+  width: 100%;
+}
+
+/* 思考内容区域 */
+.writing-apply-thinking {
+  margin-bottom: var(--size-4-8);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  overflow: hidden;
+}
+
+.writing-apply-thinking-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  transition: background 100ms ease-in-out;
+}
+
+.writing-apply-thinking-header:hover {
+  background: var(--background-modifier-hover);
+}
+
+.writing-apply-thinking-chevron {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.writing-apply-thinking-content {
+  padding: var(--size-4-3) var(--size-4-4);
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: var(--font-ui-smaller);
+  line-height: var(--line-height-normal);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--background-primary-alt);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* 流式内容显示 */
+.writing-apply-streaming {
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 流式阶段的原始内容和结果区域 */
+.writing-apply-streaming-original,
+.writing-apply-streaming-result {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 流式阶段的标签 */
+.writing-apply-streaming-label {
+  padding: var(--size-2-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.writing-apply-streaming-label.original {
+  background: rgba(var(--writing-current-color-rgb), 0.15);
+  color: rgb(var(--writing-current-color-rgb));
+}
+
+.writing-apply-streaming-label.result {
+  background: rgba(var(--writing-incoming-color-rgb), 0.15);
+  color: rgb(var(--writing-incoming-color-rgb));
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Diff 块容器样式 */
+.writing-apply-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-4);
+}
+
+/* 单个 diff 块 */
+.writing-apply-block {
+  position: relative;
+  scroll-margin-top: var(--size-4-8);
+}
+
+/* 未变化块 - 普通样式 */
+.writing-apply-block-unchanged .writing-apply-block-content.unchanged {
+  padding: var(--size-2-1) 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: var(--line-height-normal);
+  color: var(--text-normal);
+}
+
+/* 修改块容器 */
+.writing-apply-block-modified {
+  position: relative;
+  margin: var(--size-4-2) 0;
+}
+
+/* Diff 块内容样式 */
+.writing-apply-block-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: var(--line-height-normal);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+}
+
+/* 行样式 */
+.writing-apply-line {
+  display: flex;
+  min-height: 1.4em;
+}
+
+.writing-apply-line-number {
+  flex-shrink: 0;
+  width: 3em;
+  padding-right: var(--size-4-2);
+  text-align: right;
+  color: var(--text-faint);
+  user-select: none;
+  font-size: var(--font-ui-smaller);
+}
+
+.writing-apply-line-content {
+  flex: 1;
+  padding: 0 var(--size-4-2);
+}
+
+/* 原始内容 - 红色背景 */
+.writing-apply-block-content.original {
+  background: rgba(var(--writing-current-color-rgb), 0.15);
+}
+
+.writing-apply-block-content.original .writing-apply-line-content {
+  background: rgba(var(--writing-current-color-rgb), 0.2);
+}
+
+/* 修改后内容 - 绿色背景 */
+.writing-apply-block-content.modified {
+  background: rgba(var(--writing-incoming-color-rgb), 0.15);
+}
+
+.writing-apply-block-content.modified .writing-apply-line-content {
+  background: rgba(var(--writing-incoming-color-rgb), 0.2);
+}
+
+/* 可编辑内容区域 */
+.writing-apply-block-content.editable {
+  display: flex;
+  flex-direction: row;
+  padding: 0;
+}
+
+.writing-apply-block-content.editable .writing-apply-line-numbers {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: var(--size-2-1) 0;
+}
+
+.writing-apply-block-content.editable .writing-apply-line-number {
+  display: block;
+  width: 3em;
+  padding-right: var(--size-4-2);
+  text-align: right;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5em;
+  user-select: none;
+}
+
+.writing-apply-editable-textarea {
+  flex: 1;
+  min-height: 1.5em;
+  padding: var(--size-2-1) var(--size-4-2);
+  border: none;
+  background: rgba(var(--writing-incoming-color-rgb), 0.2);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  line-height: 1.5em;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+}
+
+.writing-apply-editable-textarea:focus {
+  background: rgba(var(--writing-incoming-color-rgb), 0.25);
+  box-shadow: inset 0 0 0 1px rgba(var(--writing-incoming-color-rgb), 0.5);
+}
+
+/* 未变化内容 */
+.writing-apply-block-content.unchanged {
   background: transparent;
 }
 
-.writing-diff-result::-webkit-scrollbar-thumb,
-.writing-diff-original::-webkit-scrollbar-thumb {
+.writing-apply-block-content.unchanged .writing-apply-line-number {
+  color: var(--text-faint);
+}
+
+/* 决策预览样式 */
+.writing-apply-block-content.preview {
+  background: var(--background-secondary);
+  border-left: 3px solid var(--interactive-accent);
+  border-radius: var(--radius-s);
+  padding: var(--size-2-1) 0;
+}
+
+.writing-apply-block-content.preview .writing-apply-line-content {
+  background: transparent;
+}
+
+.writing-apply-block-content.preview .writing-apply-line-number {
+  color: var(--text-faint);
+}
+
+/* 块级操作按钮样式 */
+.writing-apply-block-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  transform: translateY(-100%);
+  display: flex;
+  gap: 0;
+  border-radius: var(--radius-s) var(--radius-s) 0 0;
+  overflow: hidden;
+}
+
+.writing-apply-block-btn {
+  padding: var(--size-4-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+  height: fit-content;
+  transition: all 100ms ease-in-out;
+}
+
+/* Accept Incoming 按钮 */
+.writing-apply-block-btn.incoming {
+  color: white;
+  background: rgba(var(--writing-incoming-color-rgb), 0.8);
+}
+
+.writing-apply-block-btn.incoming:hover {
+  background: rgba(var(--writing-incoming-color-rgb), 1);
+}
+
+/* Accept Current 按钮 */
+.writing-apply-block-btn.current {
+  color: white;
+  background: rgba(var(--writing-current-color-rgb), 0.8);
+}
+
+.writing-apply-block-btn.current:hover {
+  background: rgba(var(--writing-current-color-rgb), 1);
+}
+
+/* Accept Both 按钮 */
+.writing-apply-block-btn.both {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.writing-apply-block-btn.both:hover {
+  background: var(--background-modifier-border);
+}
+
+/* 已决策块样式 */
+.writing-apply-block-modified.decided {
+  border-radius: var(--radius-s);
+  background: var(--background-secondary-alt);
+  padding: var(--size-4-2);
+}
+
+.writing-apply-decided-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--size-2-1) var(--size-4-2);
+  margin-bottom: var(--size-4-2);
+  background: var(--background-modifier-hover);
+  border-radius: var(--radius-s);
+}
+
+.writing-apply-decided-label {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-accent);
+  font-weight: var(--font-medium);
+}
+
+/* Undo 按钮 - 移到 header 内 */
+.writing-apply-decided-header .writing-apply-block-btn.undo {
+  padding: var(--size-2-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  margin: 0;
+  transition: all 100ms ease-in-out;
+}
+
+.writing-apply-decided-header .writing-apply-block-btn.undo:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+
+/* 深色主题适配 */
+.theme-dark .writing-apply-thinking-content {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 滚动条样式 */
+.writing-apply-diff-container::-webkit-scrollbar,
+.writing-apply-thinking-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.writing-apply-diff-container::-webkit-scrollbar-track,
+.writing-apply-thinking-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.writing-apply-diff-container::-webkit-scrollbar-thumb,
+.writing-apply-thinking-content::-webkit-scrollbar-thumb {
   background: var(--background-modifier-border);
   border-radius: 3px;
 }
 
-.writing-diff-result::-webkit-scrollbar-thumb:hover,
-.writing-diff-original::-webkit-scrollbar-thumb:hover {
+.writing-apply-diff-container::-webkit-scrollbar-thumb:hover,
+.writing-apply-thinking-content::-webkit-scrollbar-thumb:hover {
   background: var(--background-modifier-border-hover);
+}
+
+/* ============================================================================
+ * 源编辑器选区高亮样式
+ * ============================================================================ */
+
+/* Diff 视图对应的源编辑器选区高亮 */
+.writing-apply-source-highlight {
+  background: rgba(4, 120, 87, 0.3) !important; /* emerald-700 */
+  border-radius: 2px;
+}
+
+/* 深色主题下稍微调整透明度 */
+.theme-dark .writing-apply-source-highlight {
+  background: rgba(4, 120, 87, 0.25) !important;
 }

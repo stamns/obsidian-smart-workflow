@@ -364,13 +364,14 @@ export class ToolbarView {
     button.className = 'selection-toolbar-submenu-item';
     button.setAttribute('data-action', action.id);
     
+    const showLabel = action.showLabel !== false; // 默认显示标签
+    
     // 内联样式（与工具栏按钮风格一致）
     button.style.cssText = `
       display: flex;
       align-items: center;
-      gap: 6px;
-      width: 100%;
-      padding: 4px 8px;
+      gap: ${showLabel ? '6px' : '0'};
+      padding: ${showLabel ? '4px 8px' : '4px 6px'};
       border: none;
       border-radius: 4px;
       background: transparent;
@@ -380,7 +381,6 @@ export class ToolbarView {
       white-space: nowrap;
       outline: none;
       box-shadow: none;
-      text-align: left;
       transition: all 100ms ease-in-out;
     `;
     
@@ -401,11 +401,13 @@ export class ToolbarView {
     setIcon(iconSpan, action.icon);
     button.appendChild(iconSpan);
     
-    // 创建文字标签
-    const labelSpan = document.createElement('span');
-    labelSpan.className = 'selection-toolbar-btn-label';
-    labelSpan.textContent = t(action.tooltipKey);
-    button.appendChild(labelSpan);
+    // 创建文字标签（仅当 showLabel 为 true 时）
+    if (showLabel) {
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'selection-toolbar-btn-label';
+      labelSpan.textContent = t(action.tooltipKey);
+      button.appendChild(labelSpan);
+    }
     
     // 绑定点击事件
     button.addEventListener('click', async (e) => {

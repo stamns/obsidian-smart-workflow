@@ -5,7 +5,7 @@
  */
 
 import { App, MarkdownView } from 'obsidian';
-import { SelectionContext, SelectionToolbarSettings, ANIMATION_CONSTANTS } from './types';
+import { SelectionContext, SelectionToolbarSettings, SelectionRange, MULTI_SELECTION_SEPARATOR, ANIMATION_CONSTANTS } from './types';
 import { debugLog } from '../../utils/logger';
 
 /**
@@ -306,8 +306,54 @@ export class SelectionService {
       return null;
     }
     
-    const text = selection.toString().trim();
-    if (!text) {
+    // 获取当前活动的 MarkdownView 和 Editor
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const editor = activeView?.editor;
+    
+    // 使用 Editor API 获取多选区信息
+    let selections: SelectionRange[] = [];
+    let isMultiSelection = false;
+    let combinedText = '';
+    
+    if (editor) {
+      const editorSelections = editor.listSelections();
+      
+      if (editorSelections && editorSelections.length > 0) {
+        isMultiSelection = editorSelections.length > 1;
+        
+        // 按行号排序选区
+        const sortedSelections = [...editorSelections].sort((a, b) => {
+          const aLine = Math.min(a.anchor.line, a.head.line);
+          const bLine = Math.min(b.anchor.line, b.head.line);
+          return aLine - bLine;
+        });
+        
+        selections = sortedSelections.map(sel => {
+          // 确定 from 和 to（anchor 和 head 可能顺序不同）
+          const from = sel.anchor.line < sel.head.line || 
+                       (sel.anchor.line === sel.head.line && sel.anchor.ch <= sel.head.ch)
+                       ? sel.anchor : sel.head;
+          const to = from === sel.anchor ? sel.head : sel.anchor;
+          
+          const text = editor.getRange(from, to);
+          return { text, from, to };
+        });
+        
+        // 合并所有选区文本，多选区时使用特殊分隔符
+        if (isMultiSelection) {
+          combinedText = selections.map(s => s.text).join(MULTI_SELECTION_SEPARATOR);
+        } else {
+          combinedText = selections.map(s => s.text).join('\n');
+        }
+      }
+    }
+    
+    // 如果没有通过 Editor API 获取到，使用传统方式
+    if (!combinedText) {
+      combinedText = selection.toString().trim();
+    }
+    
+    if (!combinedText) {
       return null;
     }
     
@@ -323,11 +369,13 @@ export class SelectionService {
     const viewType = this.getViewType();
     
     return {
-      text,
+      text: combinedText,
       rect,
       viewType,
       selection,
       range,
+      selections: selections.length > 0 ? selections : undefined,
+      isMultiSelection,
     };
   }
 

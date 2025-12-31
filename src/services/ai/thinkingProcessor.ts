@@ -202,16 +202,12 @@ export class ThinkingProcessor {
         this.currentPatternIndex = -1;
       } else {
         // 还没找到结束标签，继续累积思考内容
-        // 但要检查是否有部分结束标签在末尾
-        const partialEnd = this.findPartialPatternEnd(processedContent, pattern);
-        if (partialEnd > 0) {
-          // 保留可能是部分结束标签的内容
-          this.thinkingBuffer += processedContent.substring(0, processedContent.length - partialEnd);
-          this.contentBuffer = processedContent.substring(processedContent.length - partialEnd);
-        } else {
-          this.thinkingBuffer += processedContent;
-          this.contentBuffer = '';
+        // 实时输出思考内容（流式显示）
+        if (this.options.onThinking && processedContent) {
+          this.options.onThinking(processedContent);
         }
+        this.thinkingBuffer += processedContent;
+        this.contentBuffer = '';
         return;
       }
     }
@@ -257,6 +253,10 @@ export class ThinkingProcessor {
         // 不完整的思考块，进入思考状态
         this.isInThinkingBlock = true;
         this.currentPatternIndex = patternIndex;
+        // 实时输出思考内容（流式显示）
+        if (this.options.onThinking && afterStart) {
+          this.options.onThinking(afterStart);
+        }
         this.thinkingBuffer = afterStart;
         this.contentBuffer = '';
         break;

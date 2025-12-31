@@ -43,6 +43,9 @@ export class TerminalSettingsRenderer extends BaseSettingsRenderer {
 
     // 行为设置卡片
     this.renderBehaviorSettings(containerEl);
+
+    // 功能显示设置卡片
+    this.renderVisibilitySettings(containerEl);
   }
 
   /**
@@ -616,5 +619,53 @@ export class TerminalSettingsRenderer extends BaseSettingsRenderer {
       validationEl.setText(t('settingsDetails.terminal.pathInvalid'));
       validationEl.style.color = 'var(--text-error)';
     }
+  }
+
+  /**
+   * 渲染功能显示设置
+   */
+  private renderVisibilitySettings(containerEl: HTMLElement): void {
+    const visibilityCard = containerEl.createDiv();
+    visibilityCard.style.padding = '16px';
+    visibilityCard.style.borderRadius = '8px';
+    visibilityCard.style.backgroundColor = 'var(--background-secondary)';
+    visibilityCard.style.marginBottom = '10px';
+
+    new Setting(visibilityCard)
+      .setName(t('settingsDetails.terminal.visibilitySettings'))
+      .setHeading();
+
+    new Setting(visibilityCard)
+      .setName(t('settingsDetails.advanced.showInCommandPalette'))
+      .setDesc(t('settingsDetails.advanced.showInCommandPaletteDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.terminal.showInCommandPalette)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.terminal.showInCommandPalette = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
+
+    new Setting(visibilityCard)
+      .setName(t('settingsDetails.advanced.showInRibbon'))
+      .setDesc(t('settingsDetails.advanced.showInRibbonTerminalDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.terminal.showInRibbon)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.terminal.showInRibbon = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
+
+    new Setting(visibilityCard)
+      .setName(t('settingsDetails.advanced.showInNewTab'))
+      .setDesc(t('settingsDetails.advanced.showInNewTabDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.terminal.showInNewTab)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.terminal.showInNewTab = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
   }
 }

@@ -78,31 +78,6 @@ export class WritingSettingsRenderer extends BaseSettingsRenderer {
     // 内容容器
     const contentEl = writingCard.createDiv({ cls: 'feature-content' });
 
-    // 启用/禁用写作功能
-    new Setting(contentEl)
-      .setName(t('writing.settings.enabled'))
-      .setDesc(t('writing.settings.enabledDesc'))
-      .addToggle(toggle => toggle
-        .setValue(this.context.plugin.settings.writing.enabled)
-        .onChange(async (value) => {
-          this.context.plugin.settings.writing.enabled = value;
-          await this.saveSettings();
-          // 更新选中工具栏以反映变化
-          this.context.plugin.updateSelectionToolbarSettings();
-        }));
-
-    // 润色功能启用/禁用
-    new Setting(contentEl)
-      .setName(t('writing.settings.polishEnabled'))
-      .setDesc(t('writing.settings.polishEnabledDesc'))
-      .addToggle(toggle => toggle
-        .setValue(this.context.plugin.settings.writing.actions.polish)
-        .onChange(async (value) => {
-          this.context.plugin.settings.writing.actions.polish = value;
-          await this.saveSettings();
-          this.context.plugin.updateSelectionToolbarSettings();
-        }));
-
     // AI 供应商/模型绑定
     this.renderProviderBinding(contentEl);
 
@@ -120,10 +95,15 @@ export class WritingSettingsRenderer extends BaseSettingsRenderer {
     const currentProvider = resolvedConfig?.provider;
     const currentModel = resolvedConfig?.model;
 
+    // 模型绑定设置标题
+    new Setting(containerEl)
+      .setName(t('writing.settings.modelBinding'))
+      .setHeading();
+
     // 供应商/模型绑定下拉框
     const bindingSetting = new Setting(containerEl)
-      .setName(t('writing.settings.providerBinding'))
-      .setDesc(t('writing.settings.providerBindingDesc'));
+      .setName(t('writing.settings.selectModel'))
+      .setDesc(t('writing.settings.selectModelDesc'));
 
     bindingSetting.addDropdown(dropdown => {
       const selectEl = dropdown.selectEl;

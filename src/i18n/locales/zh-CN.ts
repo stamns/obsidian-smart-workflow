@@ -119,7 +119,7 @@ export const zhCN: TranslationKeys = {
 
   settings: {
     tabs: {
-      general: '常规设置',
+      general: '模型服务',
       naming: '功能设置',
       writing: '写作',
       terminal: '本地终端',
@@ -189,6 +189,10 @@ export const zhCN: TranslationKeys = {
       modelsAdded: '已添加 {{count}} 个模型',
     },
     naming: {
+      modelBinding: '模型绑定',
+      selectModel: '选择模型',
+      selectModelDesc: '选择用于 AI 文件名生成的供应商和模型。建议使用 Flash、Air 等快速模型以获得更好的响应速度。',
+      visibilitySettings: '功能显示',
       namingBehavior: '命名行为',
       useCurrentFilename: '使用当前文件名作为上下文',
       useCurrentFilenameDesc: '启用后，AI 会参考当前文件名进行改进；禁用后，仅根据笔记内容生成标题',
@@ -269,6 +273,7 @@ export const zhCN: TranslationKeys = {
       scrollbackDesc: '终端可保存的历史输出行数（最小 100，最大 10000）',
       defaultHeight: '默认面板高度',
       defaultHeightDesc: '终端面板的默认高度（像素，最小 100，最大 1000）',
+      visibilitySettings: '功能显示',
       pathValid: '✅ 路径有效',
       pathInvalid: '⚠️ 警告：路径不存在或无法访问，终端可能无法启动',
     },
@@ -552,6 +557,7 @@ export const zhCN: TranslationKeys = {
       showDelayDesc: '选中文字后显示工具栏的延迟时间（0-1000毫秒）',
       buttonConfig: '按钮配置',
       buttonConfigDesc: '拖拽调整按钮顺序，勾选启用/禁用按钮，设置是否显示文字标签',
+      enabledShort: '开关',
       showLabel: '文字',
     },
   },
@@ -567,17 +573,20 @@ export const zhCN: TranslationKeys = {
       expand: '扩写',
       continue: '续写',
     },
-    // 操作栏按钮
+    // Diff
     actions: {
-      accept: '接受',
-      acceptTooltip: '用润色后的文本替换原文',
-      reject: '保留原文',
-      rejectTooltip: '关闭并保留原文',
-      merge: '合并',
-      mergeTooltip: '将润色后的文本追加到原文下方',
-      retry: '重试',
-      retryTooltip: '重新尝试',
-      cancel: '取消',
+      // diff 操作
+      acceptIncoming: '接受新内容',
+      acceptCurrent: '保留原内容',
+      acceptBoth: '合并两者',
+      undo: '撤销',
+      acceptAll: '接受全部',
+      acceptAllTooltip: '将所有块标记为接受 AI 修改',
+      rejectAll: '拒绝全部',
+      rejectAllTooltip: '将所有块标记为保留原内容',
+      reset: '重置',
+      apply: '长按应用',
+      applyTooltip: '长按应用当前决策并关闭',
     },
     // 状态消息
     status: {
@@ -586,6 +595,18 @@ export const zhCN: TranslationKeys = {
       complete: '完成',
       error: '错误',
       editing: '编辑中',
+      computing: '正在计算差异...',
+    },
+    // 进度消息
+    progress: {
+      resolved: '{{resolved}}/{{total}} 已决策',
+      noChanges: '无变化',
+    },
+    // 决策标签
+    decisions: {
+      acceptedIncoming: '已接受新内容',
+      keptCurrent: '已保留原内容',
+      mergedBoth: '已合并两者',
     },
     // 错误消息
     errors: {
@@ -597,6 +618,9 @@ export const zhCN: TranslationKeys = {
       streamInterrupted: '流式传输中断：{{reason}}',
       streamInterruptedWithReason: '流式传输中断：{{reason}}',
       invalidResponse: '无效的 AI 响应',
+      fileNotFound: '源文件未找到',
+      editorNotFound: '源编辑器未找到',
+      applyFailed: '应用更改失败',
     },
     // 设置
     settings: {
@@ -606,8 +630,9 @@ export const zhCN: TranslationKeys = {
       enabledDesc: '在选中工具栏中显示写作菜单',
       polishEnabled: '润色',
       polishEnabledDesc: '启用文本润色功能',
-      providerBinding: 'AI 供应商',
-      providerBindingDesc: '选择用于写作功能的供应商和模型',
+      modelBinding: '模型绑定',
+      selectModel: '选择模型',
+      selectModelDesc: '选择用于写作功能的供应商和模型',
       promptTemplate: '润色 Prompt 模板',
       promptTemplateDesc: '自定义发送给 AI 的润色提示。使用 {{content}} 表示选中的文本。',
       resetPrompt: '重置为默认',
@@ -617,10 +642,25 @@ export const zhCN: TranslationKeys = {
       acceptHint: 'Enter 接受',
       rejectHint: 'Esc 保留原文',
       mergeHint: 'Ctrl+M 合并',
+      applyHint: 'Enter 或 Cmd/Ctrl+Enter 应用',
+      closeHint: 'Esc 关闭',
     },
     // 思考内容
     thinking: {
       title: 'AI 思考过程',
+    },
+    // Diff 视图
+    diff: {
+      original: '原文',
+      result: 'AI 结果',
+    },
+    // 选区分组
+    selectionGroup: {
+      title: '选区 {{index}}',
+    },
+    // 应用视图
+    applyView: {
+      title: '写作润色',
     },
   },
 };

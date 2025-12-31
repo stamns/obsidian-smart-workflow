@@ -14,6 +14,7 @@ import { ConfigManager } from '../config/configManager';
 import { debugLog } from '../../utils/logger';
 import { t } from '../../i18n';
 import { AIClient, AIError, AIErrorCode, NetworkError, TimeoutError } from '../ai';
+import { MULTI_SELECTION_SEPARATOR } from '../../ui/selection/types';
 
 /**
  * 流式回调接口
@@ -99,7 +100,15 @@ export class WritingService {
           onStart: () => {},
           onChunk: callbacks.onChunk,
           onThinking: callbacks.onThinking,
-          onComplete: (response) => callbacks.onComplete(response.content),
+          onComplete: (response) => {
+            if (this.settings.debugMode) {
+              debugLog('[WritingService] AI 润色完成，返回内容:');
+              debugLog('='.repeat(50));
+              debugLog(response.content);
+              debugLog('='.repeat(50));
+            }
+            callbacks.onComplete(response.content);
+          },
           onError: (error) => callbacks.onError(this.normalizeError(error)),
         }
       );
@@ -131,9 +140,24 @@ export class WritingService {
 
   /**
    * 构建润色 Prompt
+   * 如果文本包含多选区分隔符，会添加额外说明让 AI 保持分隔符
    */
   buildPolishPrompt(text: string, template?: string): string {
     const promptTemplate = template || this.getPolishPromptTemplate();
+    
+    // 检查是否为多选区文本
+    const isMultiSelection = text.includes(MULTI_SELECTION_SEPARATOR);
+    
+    if (isMultiSelection) {
+      // 为多选区添加额外说明
+      const multiSelectionNote = `
+注意：输入文本包含多个独立段落，用 "---SELECTION_BOUNDARY---" 分隔。
+请分别润色每个段落，并在输出中保持相同的分隔符 "---SELECTION_BOUNDARY---" 来分隔各段落。
+`;
+      const basePrompt = this.renderPrompt(promptTemplate, { content: text });
+      return multiSelectionNote + '\n' + basePrompt;
+    }
+    
     return this.renderPrompt(promptTemplate, { content: text });
   }
 

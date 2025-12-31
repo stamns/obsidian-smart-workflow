@@ -208,6 +208,10 @@ export interface TranslationKeys {
       modelsAdded: string;
     };
     naming: {
+      modelBinding: string;
+      selectModel: string;
+      selectModelDesc: string;
+      visibilitySettings: string;
       namingBehavior: string;
       useCurrentFilename: string;
       useCurrentFilenameDesc: string;
@@ -288,6 +292,7 @@ export interface TranslationKeys {
       scrollbackDesc: string;
       defaultHeight: string;
       defaultHeightDesc: string;
+      visibilitySettings: string;
       pathValid: string;
       pathInvalid: string;
     };
@@ -590,6 +595,7 @@ export interface TranslationKeys {
       showDelayDesc: string;
       buttonConfig: string;
       buttonConfigDesc: string;
+      enabledShort: string;
       showLabel: string;
     };
   };
@@ -608,15 +614,18 @@ export interface TranslationKeys {
     };
     // 操作栏按钮
     actions: {
-      accept: string;
-      acceptTooltip: string;
-      reject: string;
-      rejectTooltip: string;
-      merge: string;
-      mergeTooltip: string;
-      retry: string;
-      retryTooltip: string;
-      cancel: string;
+      // diff 操作
+      acceptIncoming: string;
+      acceptCurrent: string;
+      acceptBoth: string;
+      undo: string;
+      acceptAll: string;
+      acceptAllTooltip: string;
+      rejectAll: string;
+      rejectAllTooltip: string;
+      reset: string;
+      apply: string;
+      applyTooltip: string;
     };
     // 状态消息
     status: {
@@ -625,6 +634,18 @@ export interface TranslationKeys {
       complete: string;
       error: string;
       editing: string;
+      computing: string;
+    };
+    // 进度消息
+    progress: {
+      resolved: string;
+      noChanges: string;
+    };
+    // 决策标签
+    decisions: {
+      acceptedIncoming: string;
+      keptCurrent: string;
+      mergedBoth: string;
     };
     // 错误消息
     errors: {
@@ -636,6 +657,9 @@ export interface TranslationKeys {
       streamInterrupted: string;
       streamInterruptedWithReason: string;
       invalidResponse: string;
+      fileNotFound: string;
+      editorNotFound: string;
+      applyFailed: string;
     };
     // 设置
     settings: {
@@ -645,8 +669,9 @@ export interface TranslationKeys {
       enabledDesc: string;
       polishEnabled: string;
       polishEnabledDesc: string;
-      providerBinding: string;
-      providerBindingDesc: string;
+      modelBinding: string;
+      selectModel: string;
+      selectModelDesc: string;
       promptTemplate: string;
       promptTemplateDesc: string;
       resetPrompt: string;
@@ -656,9 +681,24 @@ export interface TranslationKeys {
       acceptHint: string;
       rejectHint: string;
       mergeHint: string;
+      applyHint: string;
+      closeHint: string;
     };
     // 思考内容
     thinking: {
+      title: string;
+    };
+    // Diff 视图
+    diff: {
+      original: string;
+      result: string;
+    };
+    // 选区分组
+    selectionGroup: {
+      title: string;
+    };
+    // 应用视图
+    applyView: {
       title: string;
     };
   };

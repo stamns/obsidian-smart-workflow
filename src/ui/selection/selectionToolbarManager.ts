@@ -387,6 +387,7 @@ export class SelectionToolbarManager {
         id: 'writing-polish',
         icon: 'sparkles',
         tooltipKey: 'writing.menu.polish',
+        showLabel: writingSettings.showLabels?.polish ?? true,
         hideAfterExecute: true,
         execute: async (context) => {
           await this.executeWritingPolish(context);
@@ -486,8 +487,12 @@ export class SelectionToolbarManager {
       editor: editor,
       view: activeView,
       from: from,
-      to: to
+      to: to,
+      selections: context.selections,
+      isMultiSelection: context.isMultiSelection,
     };
+    
+    debugLog('[SelectionToolbarManager] 执行润色，多选区:', context.isMultiSelection, '选区数:', context.selections?.length);
     
     // 执行润色
     await this.writingActionExecutor.executePolish(writingContext);

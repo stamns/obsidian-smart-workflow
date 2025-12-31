@@ -1,6 +1,6 @@
 /**
  * 常规设置渲染器
- * 负责渲染供应商管理和功能绑定设置
+ * 负责渲染供应商管理设置
  */
 
 import { Setting, Notice, setIcon, requestUrl } from 'obsidian';
@@ -25,7 +25,7 @@ import { t } from '../../i18n';
 
 /**
  * 常规设置渲染器
- * 处理供应商管理、模型管理和功能绑定的渲染
+ * 处理供应商管理和模型管理的渲染
  */
 export class GeneralSettingsRenderer extends BaseSettingsRenderer {
   /**
@@ -37,123 +37,6 @@ export class GeneralSettingsRenderer extends BaseSettingsRenderer {
 
     // 供应商管理区域
     this.renderProviderManagement(context.containerEl);
-
-    // 功能绑定区域
-    this.renderFeatureBindings(context.containerEl);
-  }
-
-  /**
-   * 渲染功能绑定区域
-   */
-  private renderFeatureBindings(containerEl: HTMLElement): void {
-    const bindingCard = this.createCard();
-    bindingCard.remove();
-    const card = containerEl.createDiv();
-    card.style.padding = '16px';
-    card.style.borderRadius = '8px';
-    card.style.backgroundColor = 'var(--background-secondary)';
-    card.style.marginBottom = '10px';
-
-    new Setting(card)
-      .setName(t('settingsDetails.general.featureBindings'))
-      .setDesc(t('settingsDetails.general.featureBindingsDesc'))
-      .setHeading();
-
-    // 获取当前 naming 功能的解析配置
-    const resolvedConfig = this.context.configManager.resolveFeatureConfig('naming');
-    const currentProvider = resolvedConfig?.provider;
-    const currentModel = resolvedConfig?.model;
-
-    // Naming 功能绑定
-    const namingSetting = new Setting(card)
-      .setName(t('settingsDetails.general.namingFeature'));
-    
-    // 使用 descEl 支持换行
-    const descEl = namingSetting.descEl;
-    descEl.empty();
-    const descText = t('settingsDetails.general.namingFeatureDesc');
-    const lines = descText.split('\n');
-    lines.forEach((line, index) => {
-      if (index > 0) descEl.createEl('br');
-      descEl.appendText(line);
-    });
-
-    // 使用自定义 select 元素支持 optgroup
-    namingSetting.addDropdown(dropdown => {
-      const selectEl = dropdown.selectEl;
-      selectEl.empty();
-      
-      // 设置最小宽度
-      selectEl.style.minWidth = '200px';
-
-      // 添加空选项（不绑定）
-      const emptyOption = selectEl.createEl('option', {
-        value: '',
-        text: t('settingsDetails.general.noBinding')
-      });
-      emptyOption.setAttribute('value', '');
-
-      // 按供应商分组添加选项
-      const providers = this.context.configManager.getProviders();
-      providers.forEach(provider => {
-        if (provider.models.length === 0) return;
-
-        // 创建 optgroup
-        const optgroup = selectEl.createEl('optgroup', { attr: { label: provider.name } });
-        
-        // 添加模型选项
-        provider.models.forEach(model => {
-          const displayName = model.displayName || model.name;
-          const option = optgroup.createEl('option', {
-            value: `${provider.id}|${model.id}`,
-            text: displayName
-          });
-          option.setAttribute('value', `${provider.id}|${model.id}`);
-        });
-      });
-
-      // 设置当前值
-      const currentValue = currentProvider && currentModel 
-        ? `${currentProvider.id}|${currentModel.id}`
-        : '';
-      selectEl.value = currentValue;
-
-      // 监听变化
-      dropdown.onChange(async (value) => {
-        if (!value) {
-          // 清除绑定
-          delete this.context.plugin.settings.featureBindings.naming;
-        } else {
-          const [providerId, modelId] = value.split('|');
-          const existingBinding = this.context.plugin.settings.featureBindings.naming;
-          this.context.plugin.settings.featureBindings.naming = {
-            providerId,
-            modelId,
-            promptTemplate: existingBinding?.promptTemplate ?? this.context.plugin.settings.defaultPromptTemplate
-          };
-        }
-        await this.saveSettings();
-        this.refreshDisplay();
-      });
-    });
-
-    // 显示当前绑定状态
-    if (currentProvider && currentModel) {
-      const displayName = currentModel.displayName || currentModel.name;
-      const statusEl = card.createDiv({ cls: 'feature-binding-status' });
-      statusEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-muted)',
-        'margin-top': '8px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      statusEl.setText(t('settingsDetails.general.currentBindingStatus', {
-        provider: currentProvider.name,
-        model: displayName
-      }));
-    }
   }
 
   /**

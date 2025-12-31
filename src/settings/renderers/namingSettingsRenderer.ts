@@ -24,17 +24,183 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
   }
 
   /**
+   * 渲染功能显示设置
+   */
+  private renderVisibilitySettings(containerEl: HTMLElement): void {
+    new Setting(containerEl)
+      .setName(t('settingsDetails.naming.visibilitySettings'))
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName(t('settingsDetails.advanced.showInCommandPalette'))
+      .setDesc(t('settingsDetails.advanced.showInCommandPaletteDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.aiNaming.showInCommandPalette)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.aiNaming.showInCommandPalette = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
+
+    new Setting(containerEl)
+      .setName(t('settingsDetails.advanced.showInEditorMenu'))
+      .setDesc(t('settingsDetails.advanced.showInEditorMenuDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.aiNaming.showInEditorMenu)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.aiNaming.showInEditorMenu = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
+
+    new Setting(containerEl)
+      .setName(t('settingsDetails.advanced.showInFileMenu'))
+      .setDesc(t('settingsDetails.advanced.showInFileMenuDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.aiNaming.showInFileMenu)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.aiNaming.showInFileMenu = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
+
+    new Setting(containerEl)
+      .setName(t('settingsDetails.advanced.showInRibbon'))
+      .setDesc(t('settingsDetails.advanced.showInRibbonDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.featureVisibility.aiNaming.showInRibbon)
+        .onChange(async (value) => {
+          this.context.plugin.settings.featureVisibility.aiNaming.showInRibbon = value;
+          await this.saveSettings();
+          this.context.plugin.updateFeatureVisibility();
+        }));
+  }
+
+  /**
+   * 渲染模型绑定设置
+   */
+  private renderModelBinding(containerEl: HTMLElement): void {
+    // 获取当前 naming 功能的解析配置
+    const resolvedConfig = this.context.configManager.resolveFeatureConfig('naming');
+    const currentProvider = resolvedConfig?.provider;
+    const currentModel = resolvedConfig?.model;
+
+    // 模型绑定设置
+    new Setting(containerEl)
+      .setName(t('settingsDetails.naming.modelBinding'))
+      .setHeading();
+
+    const bindingSetting = new Setting(containerEl)
+      .setName(t('settingsDetails.naming.selectModel'))
+      .setDesc(t('settingsDetails.naming.selectModelDesc'));
+
+    // 使用自定义 select 元素支持 optgroup
+    bindingSetting.addDropdown(dropdown => {
+      const selectEl = dropdown.selectEl;
+      selectEl.empty();
+      
+      // 设置最小宽度
+      selectEl.style.minWidth = '200px';
+
+      // 添加空选项（不绑定）
+      const emptyOption = selectEl.createEl('option', {
+        value: '',
+        text: t('settingsDetails.general.noBinding')
+      });
+      emptyOption.setAttribute('value', '');
+
+      // 按供应商分组添加选项
+      const providers = this.context.configManager.getProviders();
+      providers.forEach(provider => {
+        if (provider.models.length === 0) return;
+
+        // 创建 optgroup
+        const optgroup = selectEl.createEl('optgroup', { attr: { label: provider.name } });
+        
+        // 添加模型选项
+        provider.models.forEach(model => {
+          const displayName = model.displayName || model.name;
+          const option = optgroup.createEl('option', {
+            value: `${provider.id}|${model.id}`,
+            text: displayName
+          });
+          option.setAttribute('value', `${provider.id}|${model.id}`);
+        });
+      });
+
+      // 设置当前值
+      const currentValue = currentProvider && currentModel 
+        ? `${currentProvider.id}|${currentModel.id}`
+        : '';
+      selectEl.value = currentValue;
+
+      // 监听变化
+      dropdown.onChange(async (value) => {
+        if (!value) {
+          // 清除绑定
+          delete this.context.plugin.settings.featureBindings.naming;
+        } else {
+          const [providerId, modelId] = value.split('|');
+          const existingBinding = this.context.plugin.settings.featureBindings.naming;
+          this.context.plugin.settings.featureBindings.naming = {
+            providerId,
+            modelId,
+            promptTemplate: existingBinding?.promptTemplate ?? this.context.plugin.settings.defaultPromptTemplate
+          };
+        }
+        await this.saveSettings();
+        this.refreshDisplay();
+      });
+    });
+
+    // 显示当前绑定状态
+    if (currentProvider && currentModel) {
+      const displayName = currentModel.displayName || currentModel.name;
+      const statusEl = containerEl.createDiv({ cls: 'feature-binding-status' });
+      statusEl.setCssProps({
+        'font-size': '0.85em',
+        color: 'var(--text-muted)',
+        'margin-top': '8px',
+        'margin-bottom': '16px',
+        padding: '8px 12px',
+        'background-color': 'var(--background-primary)',
+        'border-radius': '4px'
+      });
+      statusEl.setText(t('settingsDetails.general.currentBindingStatus', {
+        provider: currentProvider.name,
+        model: displayName
+      }));
+    }
+  }
+
+  /**
    * 渲染命名设置
    * @param context 渲染器上下文
    */
   render(context: RendererContext): void {
     this.context = context;
 
+    // 渲染顺序：选中工具栏 → 写作 → AI 文件名生成
+    
+    // 1. 选中工具栏功能设置
+    this.renderSelectionToolbarFunctionSettings(context.containerEl);
+
+    // 2. 写作功能设置
+    this.writingRenderer.render(context);
+
+    // 3. AI 命名功能设置
+    this.renderNamingFeature(context.containerEl);
+  }
+
+  /**
+   * 渲染 AI 命名功能区块
+   */
+  private renderNamingFeature(containerEl: HTMLElement): void {
     // AI 命名功能区块（可折叠，默认展开）
     const isNamingExpanded = !this.context.expandedSections.has('naming-feature-collapsed');
     
     // 功能卡片
-    const namingCard = context.containerEl.createDiv();
+    const namingCard = containerEl.createDiv();
     namingCard.style.padding = '16px';
     namingCard.style.borderRadius = '8px';
     namingCard.style.backgroundColor = 'var(--background-secondary)';
@@ -78,17 +244,16 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
       this.refreshDisplay();
     });
 
-    // 如果未展开，不渲染内容，但继续渲染选中工具栏设置和写作设置
+    // 如果未展开，不渲染内容
     if (!isNamingExpanded) {
-      // 选中工具栏功能设置（独立卡片）
-      this.renderSelectionToolbarFunctionSettings(context.containerEl);
-      // 写作功能设置
-      this.writingRenderer.render(context);
       return;
     }
 
     // 内容容器
     const contentEl = namingCard.createDiv({ cls: 'feature-content' });
+
+    // 模型绑定设置
+    this.renderModelBinding(contentEl);
 
     // 命名行为设置
     new Setting(contentEl)
@@ -259,11 +424,8 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
           this.refreshDisplay();
         }));
 
-    // 选中工具栏功能设置
-    this.renderSelectionToolbarFunctionSettings(context.containerEl);
-
-    // 写作功能设置
-    this.writingRenderer.render(context);
+    // 功能显示设置
+    this.renderVisibilitySettings(contentEl);
   }
 
 
@@ -505,22 +667,31 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
       writing: 'pen-tool'
     };
 
+    // 有子菜单的按钮及其子项
+    const subMenuItems: Record<string, { id: string; name: string; icon: string }[]> = {
+      writing: [
+        { id: 'polish', name: t('writing.menu.polish'), icon: 'sparkles' }
+      ]
+    };
+
     // 拖拽状态
     let draggedIndex: number | null = null;
 
     // 渲染每个按钮配置项
     buttonConfigs.forEach((config, index) => {
+      const hasSubMenu = subMenuItems[config.id] !== undefined;
+      
       const itemEl = buttonListEl.createDiv({ cls: 'toolbar-button-item' });
       itemEl.setAttribute('draggable', 'true');
       itemEl.setAttribute('data-index', String(index));
       itemEl.setCssProps({
         display: 'flex',
         'align-items': 'center',
-        gap: '8px',
-        padding: '8px 10px',
-        'margin-bottom': '4px',
+        gap: '10px',
+        padding: '8px 12px',
+        'margin-bottom': hasSubMenu ? '0' : '4px',
         'background-color': 'var(--background-primary)',
-        'border-radius': '6px',
+        'border-radius': hasSubMenu ? '6px 6px 0 0' : '6px',
         cursor: 'grab',
         transition: 'all 0.2s ease',
         'border-left': '3px solid transparent'
@@ -585,18 +756,6 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
         'flex-shrink': '0'
       });
 
-      // 启用开关
-      const toggleEl = itemEl.createEl('input', { type: 'checkbox' });
-      toggleEl.checked = config.enabled;
-      toggleEl.setCssProps({
-        'flex-shrink': '0'
-      });
-      toggleEl.addEventListener('change', async () => {
-        config.enabled = toggleEl.checked;
-        await this.saveSettings();
-        this.context.plugin.updateSelectionToolbarSettings();
-      });
-
       // 图标预览
       const iconPreview = itemEl.createSpan({ cls: 'button-icon-preview' });
       setIcon(iconPreview, config.customIcon || defaultIcons[config.id] || 'circle');
@@ -604,8 +763,8 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
         display: 'inline-flex',
         'align-items': 'center',
         'justify-content': 'center',
-        width: '20px',
-        height: '20px',
+        width: '18px',
+        height: '18px',
         color: 'var(--text-muted)',
         'flex-shrink': '0'
       });
@@ -618,13 +777,44 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
         'font-size': '0.9em'
       });
 
-      // 显示文字开关
-      const showLabelContainer = itemEl.createDiv({ cls: 'show-label-toggle' });
+      // 右侧控制区域
+      const controlsEl = itemEl.createDiv({ cls: 'button-controls' });
+      controlsEl.setCssProps({
+        display: 'flex',
+        'align-items': 'center',
+        gap: '12px',
+        'flex-shrink': '0'
+      });
+
+      // 启用开关：开关 [ ]
+      const enabledContainer = controlsEl.createDiv({ cls: 'toggle-container' });
+      enabledContainer.setCssProps({
+        display: 'flex',
+        'align-items': 'center',
+        gap: '4px'
+      });
+      
+      const enabledLabel = enabledContainer.createSpan();
+      enabledLabel.setText(t('selectionToolbar.settings.enabledShort'));
+      enabledLabel.setCssProps({
+        'font-size': '0.8em',
+        color: 'var(--text-muted)'
+      });
+      
+      const enabledToggle = enabledContainer.createEl('input', { type: 'checkbox' });
+      enabledToggle.checked = config.enabled;
+      enabledToggle.addEventListener('change', async () => {
+        config.enabled = enabledToggle.checked;
+        await this.saveSettings();
+        this.context.plugin.updateSelectionToolbarSettings();
+      });
+
+      // 显示文字开关：文字 [ ]
+      const showLabelContainer = controlsEl.createDiv({ cls: 'toggle-container' });
       showLabelContainer.setCssProps({
         display: 'flex',
         'align-items': 'center',
-        gap: '4px',
-        'flex-shrink': '0'
+        gap: '4px'
       });
       
       const showLabelLabel = showLabelContainer.createSpan();
@@ -649,6 +839,134 @@ export class NamingSettingsRenderer extends BaseSettingsRenderer {
       itemEl.addEventListener('mouseleave', () => {
         dragHandle.style.color = 'var(--text-faint)';
       });
+
+      // 渲染子菜单项（如果有）
+      if (hasSubMenu) {
+        this.renderSubMenuItems(buttonListEl, config.id, subMenuItems[config.id]);
+      }
+    });
+  }
+
+  /**
+   * 渲染子菜单项
+   * 注：当前只有润色一个子菜单项，暂不支持拖拽排序
+   * 未来添加更多子菜单项时可扩展排序功能
+   */
+  private renderSubMenuItems(
+    containerEl: HTMLElement, 
+    parentId: string, 
+    items: { id: string; name: string; icon: string }[]
+  ): void {
+    const subMenuContainer = containerEl.createDiv({ cls: 'sub-menu-container' });
+    subMenuContainer.setCssProps({
+      'margin-left': '24px',
+      'margin-bottom': '4px',
+      'padding': '8px 12px',
+      'background-color': 'var(--background-primary)',
+      'border-radius': '0 0 6px 6px',
+      'border-top': '1px dashed var(--background-modifier-border)'
+    });
+
+    items.forEach((item, index) => {
+      const subItemEl = subMenuContainer.createDiv({ cls: 'sub-menu-item' });
+      subItemEl.setCssProps({
+        display: 'flex',
+        'align-items': 'center',
+        gap: '10px',
+        padding: '4px 0',
+        'margin-bottom': index < items.length - 1 ? '4px' : '0'
+      });
+
+      // 树形连接线
+      const treeLineEl = subItemEl.createSpan({ cls: 'tree-line' });
+      treeLineEl.setText(index === items.length - 1 ? '└' : '├');
+      treeLineEl.setCssProps({
+        color: 'var(--text-faint)',
+        'font-family': 'monospace',
+        'margin-right': '4px'
+      });
+
+      // 子项图标
+      const iconEl = subItemEl.createSpan({ cls: 'sub-item-icon' });
+      setIcon(iconEl, item.icon);
+      iconEl.setCssProps({
+        display: 'inline-flex',
+        'align-items': 'center',
+        width: '16px',
+        height: '16px',
+        color: 'var(--text-muted)',
+        'flex-shrink': '0'
+      });
+
+      // 子项名称
+      const nameEl = subItemEl.createSpan({ cls: 'sub-item-name' });
+      nameEl.setText(item.name);
+      nameEl.setCssProps({
+        flex: '1',
+        'font-size': '0.85em',
+        color: 'var(--text-muted)'
+      });
+
+      // 子项控制区域
+      const controlsEl = subItemEl.createDiv({ cls: 'sub-item-controls' });
+      controlsEl.setCssProps({
+        display: 'flex',
+        'align-items': 'center',
+        gap: '12px',
+        'flex-shrink': '0'
+      });
+
+      // 根据 parentId 和 item.id 获取对应的设置
+      if (parentId === 'writing' && item.id === 'polish') {
+        // 润色功能启用开关
+        const enabledContainer = controlsEl.createDiv({ cls: 'toggle-container' });
+        enabledContainer.setCssProps({
+          display: 'flex',
+          'align-items': 'center',
+          gap: '4px'
+        });
+        
+        const enabledLabel = enabledContainer.createSpan();
+        enabledLabel.setText(t('selectionToolbar.settings.enabledShort'));
+        enabledLabel.setCssProps({
+          'font-size': '0.8em',
+          color: 'var(--text-muted)'
+        });
+        
+        const enabledToggle = enabledContainer.createEl('input', { type: 'checkbox' });
+        enabledToggle.checked = this.context.plugin.settings.writing.actions.polish;
+        enabledToggle.addEventListener('change', async () => {
+          this.context.plugin.settings.writing.actions.polish = enabledToggle.checked;
+          await this.saveSettings();
+          this.context.plugin.updateSelectionToolbarSettings();
+        });
+
+        // 润色功能文字显示开关
+        const showLabelContainer = controlsEl.createDiv({ cls: 'toggle-container' });
+        showLabelContainer.setCssProps({
+          display: 'flex',
+          'align-items': 'center',
+          gap: '4px'
+        });
+        
+        const showLabelLabel = showLabelContainer.createSpan();
+        showLabelLabel.setText(t('selectionToolbar.settings.showLabel'));
+        showLabelLabel.setCssProps({
+          'font-size': '0.8em',
+          color: 'var(--text-muted)'
+        });
+        
+        const showLabelToggle = showLabelContainer.createEl('input', { type: 'checkbox' });
+        showLabelToggle.checked = this.context.plugin.settings.writing.showLabels?.polish ?? true;
+        showLabelToggle.addEventListener('change', async () => {
+          if (!this.context.plugin.settings.writing.showLabels) {
+            this.context.plugin.settings.writing.showLabels = { polish: true };
+          }
+          this.context.plugin.settings.writing.showLabels.polish = showLabelToggle.checked;
+          await this.saveSettings();
+          this.context.plugin.updateSelectionToolbarSettings();
+        });
+      }
     });
   }
 }

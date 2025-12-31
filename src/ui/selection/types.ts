@@ -8,11 +8,29 @@ export type { SelectionToolbarSettings, ToolbarButtonConfig } from '../../settin
 export { DEFAULT_SELECTION_TOOLBAR_SETTINGS, DEFAULT_TOOLBAR_BUTTON_CONFIGS } from '../../settings/settings';
 
 /**
+ * 单个选区范围信息
+ */
+export interface SelectionRange {
+  /** 选中的文本内容 */
+  text: string;
+  /** 起始位置 */
+  from: { line: number; ch: number };
+  /** 结束位置 */
+  to: { line: number; ch: number };
+}
+
+/**
+ * 多选区分隔符
+ * 用于在合并多个选区文本时标记边界，便于 AI 返回后拆分
+ */
+export const MULTI_SELECTION_SEPARATOR = '\n---SELECTION_BOUNDARY---\n';
+
+/**
  * 选中文字的上下文信息
 
  */
 export interface SelectionContext {
-  /** 选中的文本内容 */
+  /** 选中的文本内容（所有选区合并，用分隔符分隔） */
   text: string;
   /** 选区的边界矩形 */
   rect: DOMRect;
@@ -20,8 +38,12 @@ export interface SelectionContext {
   viewType: 'editing' | 'source' | 'reading';
   /** 原始 Selection 对象 */
   selection: Selection;
-  /** 原始 Range 对象 */
+  /** 原始 Range 对象（第一个选区） */
   range: Range;
+  /** 多选区信息（使用 Editor API 获取） */
+  selections?: SelectionRange[];
+  /** 是否为多选区 */
+  isMultiSelection?: boolean;
 }
 
 /**

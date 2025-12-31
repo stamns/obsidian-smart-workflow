@@ -92,6 +92,10 @@ export class ProviderEditModal extends Modal {
     });
 
     const updateActualUrl = (endpoint: string) => {
+      if (!endpoint.trim()) {
+        actualUrlEl.setText(t('settingsDetails.general.actualRequestUrl', { url: '...' }));
+        return;
+      }
       const normalized = EndpointNormalizer.normalizeChatCompletions(endpoint);
       actualUrlEl.setText(t('settingsDetails.general.actualRequestUrl', { url: normalized }));
     };

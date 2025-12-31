@@ -5,6 +5,7 @@ import { FileNameService } from './services/naming/fileNameService';
 import { NoticeHelper } from './ui/noticeHelper';
 import { TerminalService } from './services/terminal/terminalService';
 import { TerminalView, TERMINAL_VIEW_TYPE } from './ui/terminal/terminalView';
+import { WritingApplyView, WRITING_APPLY_VIEW_TYPE } from './ui/writing/writingApplyView';
 import { SelectionToolbarManager } from './ui/selection';
 import { setDebugMode, debugLog, errorLog } from './utils/logger';
 import { i18n, t } from './i18n';
@@ -178,6 +179,12 @@ export default class SmartWorkflowPlugin extends Plugin {
     this.registerView(
       TERMINAL_VIEW_TYPE,
       (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.terminalService)
+    );
+
+    // 注册写作应用视图
+    this.registerView(
+      WRITING_APPLY_VIEW_TYPE,
+      (leaf: WorkspaceLeaf) => new WritingApplyView(leaf)
     );
 
     // 添加侧边栏图标按钮 - AI 文件名生成
