@@ -16,9 +16,17 @@ portable-pty = "0.9"
 # 异步运行时
 tokio = { version = "1", features = ["rt", "net", "sync", "signal", "macros", "time"] }
 
-# WebSocket (native-tls 用于 wss:// 连接)
-tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
+# WebSocket
+tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect"] }
 futures-util = "0.3"
+
+# TLS 支持 (通过 feature 选择)
+# 默认使用 native-tls，Linux ARM64 交叉编译使用 rustls
+native-tls = { version = "0.2", optional = true }
+tokio-native-tls = { version = "0.3", optional = true }
+rustls = { version = "0.23", optional = true }
+tokio-rustls = { version = "0.26", optional = true }
+webpki-roots = { version = "0.26", optional = true }
 
 # 音频录制
 cpal = "0.15"
@@ -33,8 +41,8 @@ hound = "3.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# HTTP 客户端 (用于 ASR 和 LLM API)
-reqwest = { version = "0.12", features = ["json", "multipart", "stream", "native-tls"] }
+# HTTP 客户端
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream"] }
 
 # 错误处理
 thiserror = "2.0"
@@ -53,6 +61,24 @@ tokio-util = "0.7"
 
 # 语言检测
 whatlang = "0.18"
+
+[features]
+default = ["native-tls-backend"]
+# 默认：使用系统 TLS (Windows/macOS/Linux x64)
+native-tls-backend = [
+    "native-tls",
+    "tokio-native-tls",
+    "tokio-tungstenite/native-tls",
+    "reqwest/native-tls",
+]
+# Linux ARM64 交叉编译：使用 rustls
+rustls-backend = [
+    "rustls",
+    "tokio-rustls",
+    "webpki-roots",
+    "tokio-tungstenite/rustls-tls-webpki-roots",
+    "reqwest/rustls-tls",
+]
 
 # 共享的 release profile 配置
 [profile.release]

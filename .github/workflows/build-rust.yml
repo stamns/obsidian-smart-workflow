@@ -71,12 +71,12 @@ jobs:
             rust-servers/target/
           key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('rust-servers/Cargo.lock') }}
 
-      - name: Build (cross)
+      - name: Build (cross + rustls)
         if: matrix.platform == 'linux' && matrix.arch == 'arm64'
         working-directory: rust-servers
-        run: cross build --release --target ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }} --no-default-features --features rustls-backend
 
-      - name: Build (cargo)
+      - name: Build (cargo + native-tls)
         if: matrix.platform != 'linux' || matrix.arch != 'arm64'
         working-directory: rust-servers
         run: cargo build --release --target ${{ matrix.target }}
