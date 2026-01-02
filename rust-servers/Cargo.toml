@@ -33,7 +33,7 @@ hound = "3.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# HTTP 客户端
+# HTTP 客户端 (用于 ASR 和 LLM API)
 reqwest = { version = "0.12", features = ["json", "multipart", "stream", "native-tls"] }
 
 # 错误处理
@@ -53,24 +53,6 @@ tokio-util = "0.7"
 
 # 语言检测
 whatlang = "0.18"
-
-[features]
-default = ["native-tls-backend"]
-# 默认：使用系统 TLS (Windows/macOS/Linux x64)
-native-tls-backend = [
-    "native-tls",
-    "tokio-native-tls",
-    "tokio-tungstenite/native-tls",
-    "reqwest/native-tls",
-]
-# Linux ARM64 交叉编译：使用 rustls
-rustls-backend = [
-    "rustls",
-    "tokio-rustls",
-    "webpki-roots",
-    "tokio-tungstenite/rustls-tls-webpki-roots",
-    "reqwest/rustls-tls",
-]
 
 # 共享的 release profile 配置
 [profile.release]
