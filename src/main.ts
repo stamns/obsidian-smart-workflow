@@ -5,6 +5,8 @@ import { FileNameService } from './services/naming/fileNameService';
 import { NoticeHelper } from './ui/noticeHelper';
 import { TerminalService } from './services/terminal/terminalService';
 import { TerminalView, TERMINAL_VIEW_TYPE } from './ui/terminal/terminalView';
+import { ChatService } from './services/chat/chatService';
+import { ChatView, CHAT_VIEW_TYPE } from './ui/chat/chatView';
 import { WritingApplyView, WRITING_APPLY_VIEW_TYPE } from './ui/writing/writingApplyView';
 import { SelectionToolbarManager } from './ui/selection';
 import { setDebugMode, debugLog, errorLog } from './utils/logger';
@@ -126,6 +128,7 @@ export default class SmartWorkflowPlugin extends Plugin {
   // 延迟初始化的服务
   private _serverManager: ServerManager | null = null;
   private _terminalService: TerminalService | null = null;
+  private _chatService: ChatService | null = null;
   private _selectionToolbarManager: SelectionToolbarManager | null = null;
   
   // 语音输入服务（延迟初始化）
@@ -178,6 +181,18 @@ export default class SmartWorkflowPlugin extends Plugin {
       debugLog('[SmartWorkflowPlugin] Terminal Service initialized');
     }
     return this._terminalService;
+  }
+
+  /**
+   * 获取聊天服务（延迟初始化）
+   */
+  get chatService(): ChatService {
+    if (!this._chatService) {
+      debugLog('[SmartWorkflowPlugin] Initializing Chat Service...');
+      this._chatService = new ChatService(this.app, this.settings, this.serverManager);
+      debugLog('[SmartWorkflowPlugin] Chat Service initialized');
+    }
+    return this._chatService;
   }
 
   /**
@@ -342,6 +357,12 @@ export default class SmartWorkflowPlugin extends Plugin {
       (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.terminalService)
     );
 
+    // 注册聊天视图
+    this.registerView(
+      CHAT_VIEW_TYPE,
+      (leaf: WorkspaceLeaf) => new ChatView(leaf, this.chatService, this.voiceInputService)
+    );
+
     // 注册写作应用视图
     this.registerView(
       WRITING_APPLY_VIEW_TYPE,
@@ -384,6 +405,15 @@ export default class SmartWorkflowPlugin extends Plugin {
         }
       });
     }
+
+    // 添加打开聊天命令
+    this.addCommand({
+      id: 'open-chat',
+      name: 'Open Smart Chat',
+      callback: async () => {
+        await this.activateChatView();
+      }
+    });
 
     // 终端快捷键命令
     this.addCommand({
@@ -1542,6 +1572,29 @@ export default class SmartWorkflowPlugin extends Plugin {
     if (this.settings.terminal.focusNewInstance) {
       workspace.setActiveLeaf(leaf, { focus: true });
     }
+  }
+
+  /**
+   * 激活聊天视图
+   */
+  async activateChatView(): Promise<void> {
+    const { workspace } = this.app;
+    
+    // Check if already open
+    let leaf = workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0];
+    
+    if (!leaf) {
+      // Create new leaf (right split by default)
+      const rightLeaf = workspace.getRightLeaf(false);
+      leaf = rightLeaf ?? workspace.getLeaf('split', 'vertical');
+      
+      await leaf.setViewState({
+        type: CHAT_VIEW_TYPE,
+        active: true,
+      });
+    }
+
+    workspace.revealLeaf(leaf);
   }
 
   /**
