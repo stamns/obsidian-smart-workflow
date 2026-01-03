@@ -153,7 +153,7 @@ A: 检查 ASR 凭证配置，确保已授予麦克风权限。
 
 欢迎加入微信群交流讨论：
 
-<img src="assets/wechat.png" width="200" alt="微信群二维码">
+<img src="assets/wechat.png" width="400" alt="微信群二维码">
 
 ---
 
