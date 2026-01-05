@@ -51,6 +51,12 @@
   transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   flex-shrink: 0;
+  /* 固定导航栏，不随内容滚动 */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  max-height: calc(100vh - 48px); /* 减去 Obsidian 设置面板顶部高度 */
 }
 /* 侧边栏展开状态 */
 .smart-workflow-sidebar.expanded {
@@ -205,6 +211,12 @@
     flex-direction: row;
     border-right: none;
     border-bottom: 1px solid var(--background-modifier-border);
+    /* 移动端：固定在顶部 */
+    position: sticky;
+    top: 0;
+    height: auto;
+    max-height: none;
+    z-index: 10;
   }
   .sidebar-toggle {
     display: none;
@@ -3724,3 +3736,326 @@
   40% { transform: scale(1); }
 }
 
+
+
+/* ==================== Mobile Settings Optimization ==================== */
+/* 移动端设置界面优化 - 解决标签栏截断、按钮拥挤、图标重叠问题 */
+
+/* 移动端导航标签栏优化 */
+@media screen and (max-width: 768px) {
+  /* 导航栏水平滚动，标签不换行 */
+  .smart-workflow-sidebar .sidebar-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    padding: 8px 4px;
+  }
+  
+  .smart-workflow-sidebar .sidebar-nav::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  
+  /* 导航项紧凑化，确保文字完整显示 */
+  .smart-workflow-sidebar .sidebar-nav-item {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    min-width: fit-content;
+    gap: 6px;
+  }
+  
+  /* 导航标签文字不截断 */
+  .smart-workflow-sidebar .sidebar-nav-label {
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  
+  /* 导航图标稍小 */
+  .smart-workflow-sidebar .sidebar-nav-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .smart-workflow-sidebar .sidebar-nav-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* 供应商卡片移动端优化 */
+@media screen and (max-width: 600px) {
+  /* 供应商头部改为两行布局 */
+  .provider-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  /* 供应商信息占满一行 */
+  .provider-info {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  /* 供应商名称 */
+  .provider-name {
+    font-size: 14px !important;
+  }
+  
+  /* 端点信息隐藏或缩短 */
+  .provider-endpoint {
+    display: none !important;
+  }
+  
+  /* 模型数量标签 */
+  .provider-model-count {
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+  }
+  
+  /* 操作按钮组换行显示 */
+  .provider-actions {
+    flex: 1 1 100% !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    margin-top: 4px !important;
+  }
+  
+  /* 操作按钮稍大，便于触摸 */
+  .provider-actions .clickable-icon {
+    padding: 6px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+/* 模型列表项移动端优化 */
+@media screen and (max-width: 600px) {
+  /* 模型项改为多行布局 */
+  .model-item {
+    flex-wrap: wrap !important;
+    padding: 8px !important;
+    gap: 6px !important;
+  }
+  
+  /* 模型左侧信息 */
+  .model-left {
+    flex: 1 1 100% !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  /* 拖拽手柄隐藏（移动端不支持拖拽） */
+  .drag-handle {
+    display: none !important;
+  }
+  
+  /* 模型名称 */
+  .model-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  
+  .model-name {
+    font-size: 13px !important;
+    word-break: break-word !important;
+  }
+  
+  /* 能力标签组换行 */
+  .model-capability-tags {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  
+  /* 标签稍小 */
+  .model-tag {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  
+  .model-tag .tag-icon {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  
+  .model-tag .tag-icon svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  
+  /* 上下文长度标签 */
+  .context-length-tag {
+    height: 18px !important;
+    font-size: 10px !important;
+    padding: 0 5px !important;
+  }
+  
+  /* 模型操作按钮 */
+  .model-actions {
+    flex: 1 1 100% !important;
+    justify-content: flex-end !important;
+    margin-top: 4px !important;
+    padding-top: 6px !important;
+    border-top: 1px solid var(--background-modifier-border) !important;
+  }
+  
+  .model-actions .clickable-icon {
+    padding: 6px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+}
+
+/* 设置项移动端优化 */
+@media screen and (max-width: 600px) {
+  /* 设置项垂直布局 */
+  .setting-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  
+  .setting-item-info {
+    width: 100% !important;
+  }
+  
+  .setting-item-control {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+  
+  /* 下拉框和输入框全宽 */
+  .setting-item-control select,
+  .setting-item-control input[type="text"],
+  .setting-item-control textarea {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  
+  /* 按钮组 */
+  .setting-item-control .setting-item-control-buttons {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+  
+  .setting-item-control button {
+    flex: 1 !important;
+  }
+}
+
+/* 语音状态表盘移动端优化 */
+@media screen and (max-width: 480px) {
+  .voice-status-dashboard {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  
+  .voice-status-card {
+    padding: 12px !important;
+  }
+  
+  .voice-status-card-header {
+    margin-bottom: 10px !important;
+    padding-bottom: 10px !important;
+  }
+  
+  .voice-status-card-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  
+  .voice-status-card-icon svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  .voice-status-card-title {
+    font-size: 14px !important;
+  }
+  
+  .voice-status-item {
+    padding: 6px 8px !important;
+    gap: 8px !important;
+  }
+  
+  .voice-status-item-label {
+    font-size: 11px !important;
+  }
+  
+  .voice-status-item-value {
+    font-size: 11px !important;
+  }
+}
+
+/* 可折叠区块移动端优化 */
+@media screen and (max-width: 600px) {
+  .collapsible-section-wrapper {
+    margin-bottom: 12px !important;
+    border-radius: 10px !important;
+  }
+  
+  .collapsible-section-header {
+    padding: 10px 12px !important;
+  }
+  
+  .collapsible-section-header .setting-item-name {
+    font-size: 13px !important;
+  }
+  
+  .collapsible-section-header .setting-item-description {
+    font-size: 11px !important;
+  }
+  
+  .collapsible-icon {
+    width: 20px !important;
+    height: 20px !important;
+    margin-right: 8px !important;
+  }
+  
+  .collapsible-content .setting-item {
+    padding: 10px 12px !important;
+  }
+}
+
+/* 主内容区移动端优化 */
+@media screen and (max-width: 600px) {
+  .smart-workflow-main {
+    padding: 10px 12px !important;
+  }
+  
+  .smart-workflow-settings-header {
+    margin-bottom: 12px !important;
+  }
+  
+  .settings-title {
+    font-size: 1.3em !important;
+  }
+  
+  .settings-feedback {
+    font-size: 11px !important;
+  }
+}
+
+/* 模态框移动端优化 */
+@media screen and (max-width: 600px) {
+  .modal {
+    width: 95vw !important;
+    max-width: none !important;
+    margin: 10px !important;
+  }
+  
+  .modal-content {
+    padding: 12px !important;
+  }
+  
+  .modal-button-container {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  .modal-button-container button {
+    width: 100% !important;
+  }
+}

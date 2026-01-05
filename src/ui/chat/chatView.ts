@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, ButtonComponent, TextAreaComponent, MarkdownRenderer, setIcon, Menu, EventRef } from 'obsidian';
+import { App, Notice, ButtonComponent, TextAreaComponent, MarkdownRenderer, setIcon, Menu, EventRef, Component } from 'obsidian';
 import { ChatService } from '../../services/chat/chatService';
 import { VoiceInputService, DictationResult } from '../../services/voice/voiceInputService';
 import { t } from '../../i18n';
@@ -41,9 +41,11 @@ const INITIAL_WELCOME_MESSAGE: ChatMessage = {
     timestamp: Date.now()
 };
 
-// --- View Class ---
+// --- Chat View Class (不继承 ItemView，由 Wrapper 管理) ---
 
-export class ChatView extends ItemView {
+export class ChatView extends Component {
+  private app: App;
+  private containerEl: HTMLElement;
   private chatService: ChatService;
   private voiceInputService: VoiceInputService | null = null;
   private messageContainer: HTMLElement;
@@ -66,8 +68,10 @@ export class ChatView extends ItemView {
   private currentSessionId: string = '1';
   private sessionMessages: Map<string, ChatMessage[]> = new Map();
 
-  constructor(leaf: WorkspaceLeaf, chatService: ChatService, voiceInputService?: VoiceInputService) {
-    super(leaf);
+  constructor(app: App, containerEl: HTMLElement, chatService: ChatService, voiceInputService?: VoiceInputService) {
+    super();
+    this.app = app;
+    this.containerEl = containerEl;
     this.chatService = chatService;
     this.voiceInputService = voiceInputService || null;
     
@@ -82,20 +86,8 @@ export class ChatView extends ItemView {
     ]);
   }
 
-  getViewType(): string {
-    return CHAT_VIEW_TYPE;
-  }
-
-  getDisplayText(): string {
-    return 'Smart Chat';
-  }
-
-  getIcon(): string {
-    return 'message-circle';
-  }
-
-  async onOpen(): Promise<void> {
-    const container = this.containerEl.children[1] as HTMLElement;
+  async render(): Promise<void> {
+    const container = this.containerEl;
     container.empty();
     container.addClass('smart-chat-view');
     
@@ -532,10 +524,11 @@ export class ChatView extends ItemView {
       }, 50);
   }
 
-  async onClose(): Promise<void> {
+  async destroy(): Promise<void> {
     if (this.messageEventRef) {
         this.chatService.offref(this.messageEventRef);
         this.messageEventRef = null;
     }
+    this.unload();
   }
 }
