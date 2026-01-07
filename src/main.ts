@@ -23,6 +23,18 @@ import { HistoryManager } from './services/voice/historyManager';
 import { LLMProcessingError } from './services/voice/types';
 import { VoiceErrorHandler, isLLMProcessingError } from './services/voice/voiceErrorHandler';
 
+// 标签生成服务
+import { TagService } from './services/tagging/tagService';
+import { TagConfirmModal } from './ui/tagging/tagConfirmModal';
+
+// 分类和归档服务
+import { CategoryService } from './services/categorizing/categoryService';
+import { ArchiveService } from './services/archiving/archiveService';
+import { CategoryConfirmModal } from './ui/categorizing/categoryConfirmModal';
+
+// 自动归档服务
+import { AutoArchiveService } from './services/automation/autoArchiveService';
+
 // 导入选择工具栏样式
 import './ui/selection/selectionToolbar.css';
 
@@ -137,7 +149,17 @@ export default class SmartWorkflowPlugin extends Plugin {
   private _configManager: ConfigManager | null = null;
   private _historyManager: HistoryManager | null = null;
   private _voiceErrorHandler: VoiceErrorHandler | null = null;
-  
+
+  // 标签生成服务（延迟初始化）
+  private _tagService: TagService | null = null;
+
+  // 分类和归档服务（延迟初始化）
+  private _categoryService: CategoryService | null = null;
+  private _archiveService: ArchiveService | null = null;
+
+  // 自动归档服务（延迟初始化）
+  private _autoArchiveService: AutoArchiveService | null = null;
+
   // Ribbon 图标引用
   private aiNamingRibbonIcon: HTMLElement | null = null;
   private terminalRibbonIcon: HTMLElement | null = null;
@@ -198,6 +220,60 @@ export default class SmartWorkflowPlugin extends Plugin {
       debugLog('[SmartWorkflowPlugin] Selection Toolbar initialized');
     }
     return this._selectionToolbarManager;
+  }
+
+  /**
+   * 获取标签生成服务（延迟初始化）
+   */
+  get tagService(): TagService {
+    if (!this._tagService) {
+      debugLog('[SmartWorkflowPlugin] Initializing Tag Service...');
+      this._tagService = new TagService(this.app, this.settings, this.serverManager);
+      debugLog('[SmartWorkflowPlugin] Tag Service initialized');
+    }
+    return this._tagService;
+  }
+
+  /**
+   * 获取分类服务（延迟初始化）
+   */
+  get categoryService(): CategoryService {
+    if (!this._categoryService) {
+      debugLog('[SmartWorkflowPlugin] Initializing Category Service...');
+      this._categoryService = new CategoryService(this.app, this.settings, this.serverManager);
+      debugLog('[SmartWorkflowPlugin] Category Service initialized');
+    }
+    return this._categoryService;
+  }
+
+  /**
+   * 获取归档服务（延迟初始化）
+   */
+  get archiveService(): ArchiveService {
+    if (!this._archiveService) {
+      debugLog('[SmartWorkflowPlugin] Initializing Archive Service...');
+      this._archiveService = new ArchiveService(this.app, this.settings);
+      debugLog('[SmartWorkflowPlugin] Archive Service initialized');
+    }
+    return this._archiveService;
+  }
+
+  /**
+   * 获取自动归档服务（延迟初始化）
+   */
+  get autoArchiveService(): AutoArchiveService {
+    if (!this._autoArchiveService) {
+      debugLog('[SmartWorkflowPlugin] Initializing Auto Archive Service...');
+      this._autoArchiveService = new AutoArchiveService(
+        this.app,
+        this.settings,
+        this.tagService,
+        this.categoryService,
+        this.archiveService
+      );
+      debugLog('[SmartWorkflowPlugin] Auto Archive Service initialized');
+    }
+    return this._autoArchiveService;
   }
 
   /**
@@ -369,6 +445,61 @@ export default class SmartWorkflowPlugin extends Plugin {
         name: t('commands.generateAiFilename'),
         callback: async () => {
           await this.handleGenerateCommand();
+        }
+      });
+    }
+
+    // 添加命令面板命令 - AI 标签生成
+    if (this.settings.tagging.enabled && this.settings.tagging.showInCommandPalette) {
+      this.addCommand({
+        id: 'generate-ai-tags',
+        name: t('tagging.commands.generateTags'),
+        checkCallback: (checking: boolean) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file) {
+            if (!checking) {
+              this.handleGenerateTagsCommand(file);
+            }
+            return true;
+          }
+          return false;
+        }
+      });
+    }
+
+    // 添加命令面板命令 - 智能归档
+    if (this.settings.archiving.enabled && this.settings.archiving.showInCommandPalette) {
+      this.addCommand({
+        id: 'smart-archive',
+        name: t('archiving.commands.archiveNote'),
+        checkCallback: (checking: boolean) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file) {
+            if (!checking) {
+              this.handleSmartArchiveCommand(file);
+            }
+            return true;
+          }
+          return false;
+        }
+      });
+    }
+
+    // 添加命令 - 一键归档（标签+归档）
+    // 命令始终注册（只要功能启用），以便用户可以在 Obsidian 快捷键设置中配置
+    if (this.settings.autoArchive?.enabled) {
+      this.addCommand({
+        id: 'auto-archive',
+        name: t('autoArchive.commands.autoArchive'),
+        checkCallback: (checking: boolean) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file && this.autoArchiveService.canProcess(file)) {
+            if (!checking) {
+              this.autoArchiveService.execute(file);
+            }
+            return true;
+          }
+          return false;
         }
       });
     }
@@ -611,6 +742,63 @@ export default class SmartWorkflowPlugin extends Plugin {
       );
     }
 
+    // 添加标签生成右键菜单
+    if (this.settings.tagging.enabled && this.settings.tagging.showInEditorMenu) {
+      this.registerEvent(
+        this.app.workspace.on('editor-menu', (menu: Menu, _editor, _view) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('tagging.commands.generateTags'))
+                .setIcon('tag')
+                .onClick(async () => {
+                  await this.handleGenerateTagsCommand(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
+    // 添加智能归档右键菜单
+    if (this.settings.archiving.enabled && this.settings.archiving.showInEditorMenu) {
+      this.registerEvent(
+        this.app.workspace.on('editor-menu', (menu: Menu, _editor, _view) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file && this.archiveService.canArchive(file)) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('archiving.commands.archiveNote'))
+                .setIcon('archive')
+                .onClick(async () => {
+                  await this.handleSmartArchiveCommand(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
+    // 添加自动归档编辑器右键菜单
+    if (this.settings.autoArchive?.enabled && this.settings.autoArchive?.showInEditorMenu) {
+      this.registerEvent(
+        this.app.workspace.on('editor-menu', (menu: Menu, _editor, _view) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file && this.autoArchiveService.canProcess(file)) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('autoArchive.commands.autoArchive'))
+                .setIcon('workflow')
+                .onClick(async () => {
+                  await this.autoArchiveService.execute(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
     // 添加文件浏览器右键菜单
     if (this.settings.featureVisibility.aiNaming.showInFileMenu) {
       this.registerEvent(
@@ -622,6 +810,60 @@ export default class SmartWorkflowPlugin extends Plugin {
                 .setIcon('sparkles')
                 .onClick(async () => {
                   await this.handleGenerateForFile(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
+    // 添加标签生成文件浏览器右键菜单
+    if (this.settings.tagging.enabled && this.settings.tagging.showInFileMenu) {
+      this.registerEvent(
+        this.app.workspace.on('file-menu', (menu: Menu, file) => {
+          if (file instanceof TFile) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('tagging.commands.generateTags'))
+                .setIcon('tag')
+                .onClick(async () => {
+                  await this.handleGenerateTagsCommand(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
+    // 添加智能归档文件浏览器右键菜单
+    if (this.settings.archiving.enabled && this.settings.archiving.showInFileMenu) {
+      this.registerEvent(
+        this.app.workspace.on('file-menu', (menu: Menu, file) => {
+          if (file instanceof TFile && this.archiveService.canArchive(file)) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('archiving.commands.archiveNote'))
+                .setIcon('archive')
+                .onClick(async () => {
+                  await this.handleSmartArchiveCommand(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
+    // 添加自动归档文件浏览器右键菜单
+    if (this.settings.autoArchive?.enabled && this.settings.autoArchive?.showInFileMenu) {
+      this.registerEvent(
+        this.app.workspace.on('file-menu', (menu: Menu, file) => {
+          if (file instanceof TFile && this.autoArchiveService.canProcess(file)) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('autoArchive.commands.autoArchive'))
+                .setIcon('workflow')
+                .onClick(async () => {
+                  await this.autoArchiveService.execute(file);
                 });
             });
           }
@@ -684,6 +926,131 @@ export default class SmartWorkflowPlugin extends Plugin {
       return;
     }
     await this.handleGenerateForFile(file);
+  }
+
+  /**
+   * 处理标签生成命令
+   * @param file 目标文件
+   */
+  async handleGenerateTagsCommand(file: TFile) {
+    try {
+      NoticeHelper.info(t('tagging.notices.generating'));
+
+      // 调用TagService生成标签
+      const result = await this.tagService.generateTags(file);
+
+      if (!result.success) {
+        NoticeHelper.error(t('tagging.notices.failed', { message: result.error || t('common.error') }));
+        return;
+      }
+
+      if (result.tags.length === 0) {
+        NoticeHelper.warning(t('tagging.notices.noTags'));
+        return;
+      }
+
+      // 如果设置为自动应用，直接应用标签
+      if (this.settings.tagging.autoApply) {
+        await this.tagService.applyTags(file, result.allTags);
+        NoticeHelper.success(t('tagging.notices.applied', { tags: result.tags.join(', ') }));
+      } else {
+        // 否则显示确认对话框
+        new TagConfirmModal(
+          this.app,
+          result.allTags,
+          async (confirmedTags) => {
+            try {
+              await this.tagService.applyTags(file, confirmedTags);
+              NoticeHelper.success(t('tagging.notices.applied', { tags: confirmedTags.join(', ') }));
+            } catch (error) {
+              errorLog('[SmartWorkflowPlugin] 应用标签失败:', error);
+              NoticeHelper.error(t('tagging.notices.failed', { message: String(error) }));
+            }
+          },
+          () => {
+            NoticeHelper.info(t('tagging.notices.cancelled'));
+          },
+          result.existingTags // 传入原有标签用于标识
+        ).open();
+      }
+    } catch (error) {
+      errorLog('[SmartWorkflowPlugin] 标签生成失败:', error);
+      NoticeHelper.error(t('tagging.notices.failed', { message: String(error) }));
+    }
+  }
+
+  /**
+   * 处理智能归档命令
+   * @param file 目标文件
+   */
+  async handleSmartArchiveCommand(file: TFile) {
+    try {
+      // 检查文件是否可以归档
+      if (!this.archiveService.canArchive(file)) {
+        NoticeHelper.warning(t('archiving.notices.archived', { path: '' }).replace('：', ''));
+        return;
+      }
+
+      NoticeHelper.info(t('archiving.notices.analyzing'));
+
+      // 调用 CategoryService 生成分类建议
+      const result = await this.categoryService.suggestCategory(file);
+
+      if (!result.success) {
+        NoticeHelper.error(t('archiving.notices.failed', { message: result.error || t('common.error') }));
+        return;
+      }
+
+      // 如果没有建议且不允许确认，直接返回
+      if (result.suggestions.length === 0 && !this.settings.archiving.confirmBeforeArchive) {
+        NoticeHelper.warning(t('archiving.notices.noCategory'));
+        return;
+      }
+
+      // 显示分类确认对话框
+      new CategoryConfirmModal(
+        this.app,
+        result.suggestions,
+        async (selectedSuggestion) => {
+          if (!selectedSuggestion) {
+            NoticeHelper.info(t('archiving.notices.cancelled'));
+            return;
+          }
+
+          try {
+            NoticeHelper.info(t('archiving.notices.archiving'));
+
+            // 如果是新分类且允许创建，先创建文件夹
+            if (selectedSuggestion.isNew && this.settings.archiving.createNewCategories) {
+              const exists = await this.categoryService.categoryExists(selectedSuggestion.path);
+              if (!exists) {
+                await this.categoryService.createCategory(selectedSuggestion.path);
+              }
+            }
+
+            // 归档文件
+            const archiveResult = await this.archiveService.archiveFile(file, {
+              targetPath: selectedSuggestion.path,
+              moveAttachments: this.settings.archiving.moveAttachments,
+              updateLinks: this.settings.archiving.updateLinks,
+              createFolder: this.settings.archiving.createNewCategories,
+            });
+
+            if (archiveResult.success) {
+              NoticeHelper.success(t('archiving.notices.archived', { path: selectedSuggestion.name }));
+            } else {
+              NoticeHelper.error(t('archiving.notices.failed', { message: archiveResult.error || t('common.error') }));
+            }
+          } catch (error) {
+            errorLog('[SmartWorkflowPlugin] 归档失败:', error);
+            NoticeHelper.error(t('archiving.notices.failed', { message: String(error) }));
+          }
+        }
+      ).open();
+    } catch (error) {
+      errorLog('[SmartWorkflowPlugin] 智能归档失败:', error);
+      NoticeHelper.error(t('archiving.notices.failed', { message: String(error) }));
+    }
   }
 
   /**
@@ -994,6 +1361,13 @@ export default class SmartWorkflowPlugin extends Plugin {
         interval: reconnectInterval,
       });
     }
+
+    // 重置标签、分类、归档相关服务实例，使其在下次使用时重新初始化以应用新设置
+    // 这些服务依赖 settings 对象，需要在设置变更后重新创建
+    this._tagService = null;
+    this._categoryService = null;
+    this._archiveService = null;
+    this._autoArchiveService = null;
   }
 
   /**
@@ -1075,6 +1449,15 @@ export default class SmartWorkflowPlugin extends Plugin {
 
     // 注意：VoiceInputService 直接使用 ServerManager，
     // _serverManager.shutdown() 会统一关闭服务器
+
+    // 清理自动归档相关资源（仅当已初始化时）
+    if (this._autoArchiveService) {
+      try {
+        this._autoArchiveService.cleanup();
+      } catch (error) {
+        errorLog('清理自动归档服务失败:', error);
+      }
+    }
 
     // 清理终端相关资源（仅当已初始化时）
     if (this._terminalService) {
