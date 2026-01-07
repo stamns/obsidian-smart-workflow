@@ -982,6 +982,10 @@ export interface TranslationKeys {
 
   // 自动归档功能
   autoArchive: {
+    // 命令
+    commands: {
+      autoArchive: string;
+    };
     // 设置
     settings: {
       title: string;
@@ -990,30 +994,29 @@ export interface TranslationKeys {
       mainSettings: string;
       enabled: string;
       enabledDesc: string;
-      triggerField: string;
-      triggerFieldDesc: string;
-      triggerFieldPlaceholder: string;
-      triggerStatus: string;
-      triggerStatusDesc: string;
-      triggerStatusPlaceholder: string;
       generateTags: string;
       generateTagsDesc: string;
       performArchive: string;
       performArchiveDesc: string;
-      advancedSettings: string;
-      debounceDelay: string;
-      debounceDelayDesc: string;
-      debounceDelayPlaceholder: string;
       excludeFolders: string;
       excludeFoldersDesc: string;
       excludeFoldersPlaceholder: string;
-      exampleTitle: string;
-      exampleCode: string;
-      exampleNote: string;
+      hotkeyConfig: string;
+      hotkeyConfigDesc: string;
+      hotkeyDesc: string;
+      noHotkeySet: string;
+      pressKey: string;
+      resetHotkey: string;
+      visibility: string;
+      commandPalette: string;
+      commandPaletteDesc: string;
+      editorMenu: string;
+      editorMenuDesc: string;
+      fileMenu: string;
+      fileMenuDesc: string;
     };
     // 通知消息
     notices: {
-      reloadRequired: string;
       processing: string;
       tagsGenerated: string;
       archived: string;

@@ -1,12 +1,13 @@
 /**
  * 自动归档设置渲染器
- * 负责渲染自动归档配置
+ * 负责渲染一键归档配置
  */
 
-import { Setting, Notice } from 'obsidian';
+import { Setting } from 'obsidian';
 import type { RendererContext } from '../types';
 import { BaseSettingsRenderer } from './baseRenderer';
 import { DEFAULT_AUTO_ARCHIVE_SETTINGS } from '../settings';
+import { createHotkeyInput } from '../components';
 import { t } from '../../i18n';
 
 /**
@@ -21,7 +22,7 @@ export class AutoArchiveSettingsRenderer extends BaseSettingsRenderer {
     this.context = context;
     const containerEl = context.containerEl;
 
-    // 统一初始化 autoArchive 设置，避免后续重复空值检查
+    // 统一初始化 autoArchive 设置
     if (!this.context.plugin.settings.autoArchive) {
       this.context.plugin.settings.autoArchive = { ...DEFAULT_AUTO_ARCHIVE_SETTINGS };
     }
@@ -32,8 +33,11 @@ export class AutoArchiveSettingsRenderer extends BaseSettingsRenderer {
     // 主要设置
     this.renderMainSettings(containerEl);
 
-    // 高级设置
-    this.renderAdvancedSettings(containerEl);
+    // 快捷键设置
+    this.renderHotkeySettings(containerEl);
+
+    // 显示选项
+    this.renderVisibilitySettings(containerEl);
   }
 
   /**
@@ -63,7 +67,7 @@ export class AutoArchiveSettingsRenderer extends BaseSettingsRenderer {
       .setName(t('autoArchive.settings.mainSettings'))
       .setHeading();
 
-    // 启用/禁用自动归档
+    // 启用/禁用
     new Setting(card)
       .setName(t('autoArchive.settings.enabled'))
       .setDesc(t('autoArchive.settings.enabledDesc'))
@@ -72,35 +76,7 @@ export class AutoArchiveSettingsRenderer extends BaseSettingsRenderer {
         .onChange(async (value) => {
           this.context.plugin.settings.autoArchive.enabled = value;
           await this.context.plugin.saveSettings();
-
-          // 提示用户重新加载插件
-          new Notice(t('autoArchive.notices.reloadRequired'));
-        })
-      );
-
-    // 触发字段名
-    new Setting(card)
-      .setName(t('autoArchive.settings.triggerField'))
-      .setDesc(t('autoArchive.settings.triggerFieldDesc'))
-      .addText(text => text
-        .setPlaceholder(t('autoArchive.settings.triggerFieldPlaceholder'))
-        .setValue(this.context.plugin.settings.autoArchive.triggerField || 'status')
-        .onChange(async (value) => {
-          this.context.plugin.settings.autoArchive.triggerField = value || 'status';
-          await this.context.plugin.saveSettings();
-        })
-      );
-
-    // 触发状态值
-    new Setting(card)
-      .setName(t('autoArchive.settings.triggerStatus'))
-      .setDesc(t('autoArchive.settings.triggerStatusDesc'))
-      .addText(text => text
-        .setPlaceholder(t('autoArchive.settings.triggerStatusPlaceholder'))
-        .setValue(this.context.plugin.settings.autoArchive.triggerStatus || 'finish')
-        .onChange(async (value) => {
-          this.context.plugin.settings.autoArchive.triggerStatus = value || 'finish';
-          await this.context.plugin.saveSettings();
+          this.context.refreshDisplay();
         })
       );
 
@@ -127,31 +103,6 @@ export class AutoArchiveSettingsRenderer extends BaseSettingsRenderer {
           await this.context.plugin.saveSettings();
         })
       );
-  }
-
-  /**
-   * 渲染高级设置
-   */
-  private renderAdvancedSettings(containerEl: HTMLElement): void {
-    const card = containerEl.createDiv({ cls: 'settings-card' });
-
-    new Setting(card)
-      .setName(t('autoArchive.settings.advancedSettings'))
-      .setHeading();
-
-    // 去抖动延迟
-    new Setting(card)
-      .setName(t('autoArchive.settings.debounceDelay'))
-      .setDesc(t('autoArchive.settings.debounceDelayDesc'))
-      .addText(text => text
-        .setPlaceholder(t('autoArchive.settings.debounceDelayPlaceholder'))
-        .setValue(String(this.context.plugin.settings.autoArchive.debounceDelay || 2000))
-        .onChange(async (value) => {
-          const delay = parseInt(value) || 2000;
-          this.context.plugin.settings.autoArchive.debounceDelay = delay;
-          await this.context.plugin.saveSettings();
-        })
-      );
 
     // 排除文件夹
     new Setting(card)
@@ -170,23 +121,75 @@ export class AutoArchiveSettingsRenderer extends BaseSettingsRenderer {
             await this.context.plugin.saveSettings();
           });
       });
+  }
 
-    // 使用示例
-    const exampleCard = containerEl.createDiv({ cls: 'settings-card-bordered' });
+  /**
+   * 渲染快捷键设置
+   */
+  private renderHotkeySettings(containerEl: HTMLElement): void {
+    const card = containerEl.createDiv({ cls: 'settings-card' });
 
-    exampleCard.createEl('h4', {
-      text: t('autoArchive.settings.exampleTitle'),
-      attr: { style: 'margin-top: 0; margin-bottom: 12px;' }
+    new Setting(card)
+      .setName(t('autoArchive.settings.hotkeyConfig'))
+      .setDesc(t('autoArchive.settings.hotkeyConfigDesc'))
+      .setHeading();
+
+    // 使用封装的快捷键组件
+    createHotkeyInput({
+      app: this.context.app,
+      containerEl: card,
+      commandId: 'auto-archive',
+      name: t('autoArchive.commands.autoArchive'),
+      description: t('autoArchive.settings.hotkeyDesc'),
+      i18nPrefix: 'autoArchive.settings',
+      onRefresh: () => this.context.refreshDisplay(),
     });
+  }
 
-    const example = exampleCard.createEl('pre', {
-      attr: { style: 'margin: 0; padding: 12px; background: var(--background-primary); border-radius: 4px; overflow-x: auto; font-family: var(--font-monospace); font-size: 12px;' }
-    });
-    example.innerHTML = `<code>${t('autoArchive.settings.exampleCode')}</code>`;
+  /**
+   * 渲染显示选项
+   */
+  private renderVisibilitySettings(containerEl: HTMLElement): void {
+    const card = containerEl.createDiv({ cls: 'settings-card' });
 
-    const note = exampleCard.createEl('p', {
-      attr: { style: 'margin-top: 12px; margin-bottom: 0; color: var(--text-muted); font-size: 13px;' }
-    });
-    note.innerHTML = t('autoArchive.settings.exampleNote');
+    new Setting(card)
+      .setName(t('autoArchive.settings.visibility'))
+      .setHeading();
+
+    // 命令面板
+    new Setting(card)
+      .setName(t('autoArchive.settings.commandPalette'))
+      .setDesc(t('autoArchive.settings.commandPaletteDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.autoArchive.showInCommandPalette ?? true)
+        .onChange(async (value) => {
+          this.context.plugin.settings.autoArchive.showInCommandPalette = value;
+          await this.context.plugin.saveSettings();
+        })
+      );
+
+    // 编辑器右键菜单
+    new Setting(card)
+      .setName(t('autoArchive.settings.editorMenu'))
+      .setDesc(t('autoArchive.settings.editorMenuDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.autoArchive.showInEditorMenu ?? true)
+        .onChange(async (value) => {
+          this.context.plugin.settings.autoArchive.showInEditorMenu = value;
+          await this.context.plugin.saveSettings();
+        })
+      );
+
+    // 文件浏览器右键菜单
+    new Setting(card)
+      .setName(t('autoArchive.settings.fileMenu'))
+      .setDesc(t('autoArchive.settings.fileMenuDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.context.plugin.settings.autoArchive.showInFileMenu ?? true)
+        .onChange(async (value) => {
+          this.context.plugin.settings.autoArchive.showInFileMenu = value;
+          await this.context.plugin.saveSettings();
+        })
+      );
   }
 }

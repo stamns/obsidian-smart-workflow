@@ -935,18 +935,16 @@ export const DEFAULT_ARCHIVING_SETTINGS: ArchivingConfig = {
 export interface AutoArchiveSettings {
   /** 是否启用自动归档功能 */
   enabled: boolean;
-  /** 触发状态值（默认：finish） */
-  triggerStatus: string;
-  /** 触发字段名（默认：status） */
-  triggerField: string;
   /** 是否自动生成标签 */
   generateTags: boolean;
   /** 是否执行自动归档 */
   performArchive: boolean;
-  /** 去抖动延迟时间（毫秒） */
-  debounceDelay: number;
   /** 排除的文件夹路径列表 */
   excludeFolders: string[];
+  /** 显示选项 */
+  showInCommandPalette: boolean;
+  showInEditorMenu: boolean;
+  showInFileMenu: boolean;
 }
 
 /**
@@ -954,15 +952,15 @@ export interface AutoArchiveSettings {
  */
 export const DEFAULT_AUTO_ARCHIVE_SETTINGS: AutoArchiveSettings = {
   enabled: false,  // 默认关闭，需要用户手动开启
-  triggerStatus: 'finish',
-  triggerField: 'status',
   generateTags: true,
   performArchive: true,
-  debounceDelay: 2000,
   excludeFolders: [
     '03-归档区',
     '99-资源库',
   ],
+  showInCommandPalette: true,
+  showInEditorMenu: true,
+  showInFileMenu: true,
 };
 
 /**

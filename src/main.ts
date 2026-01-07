@@ -485,6 +485,25 @@ export default class SmartWorkflowPlugin extends Plugin {
       });
     }
 
+    // 添加命令 - 一键归档（标签+归档）
+    // 命令始终注册（只要功能启用），以便用户可以在 Obsidian 快捷键设置中配置
+    if (this.settings.autoArchive?.enabled) {
+      this.addCommand({
+        id: 'auto-archive',
+        name: t('autoArchive.commands.autoArchive'),
+        checkCallback: (checking: boolean) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file && this.autoArchiveService.canProcess(file)) {
+            if (!checking) {
+              this.autoArchiveService.execute(file);
+            }
+            return true;
+          }
+          return false;
+        }
+      });
+    }
+
     // 添加打开终端命令
     if (this.settings.featureVisibility.terminal.showInCommandPalette) {
       this.addCommand({
@@ -761,6 +780,25 @@ export default class SmartWorkflowPlugin extends Plugin {
       );
     }
 
+    // 添加自动归档编辑器右键菜单
+    if (this.settings.autoArchive?.enabled && this.settings.autoArchive?.showInEditorMenu) {
+      this.registerEvent(
+        this.app.workspace.on('editor-menu', (menu: Menu, _editor, _view) => {
+          const file = this.app.workspace.getActiveFile();
+          if (file && this.autoArchiveService.canProcess(file)) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('autoArchive.commands.autoArchive'))
+                .setIcon('workflow')
+                .onClick(async () => {
+                  await this.autoArchiveService.execute(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
     // 添加文件浏览器右键菜单
     if (this.settings.featureVisibility.aiNaming.showInFileMenu) {
       this.registerEvent(
@@ -815,6 +853,24 @@ export default class SmartWorkflowPlugin extends Plugin {
       );
     }
 
+    // 添加自动归档文件浏览器右键菜单
+    if (this.settings.autoArchive?.enabled && this.settings.autoArchive?.showInFileMenu) {
+      this.registerEvent(
+        this.app.workspace.on('file-menu', (menu: Menu, file) => {
+          if (file instanceof TFile && this.autoArchiveService.canProcess(file)) {
+            menu.addItem((item) => {
+              item
+                .setTitle(t('autoArchive.commands.autoArchive'))
+                .setIcon('workflow')
+                .onClick(async () => {
+                  await this.autoArchiveService.execute(file);
+                });
+            });
+          }
+        })
+      );
+    }
+
     // 添加设置标签页
     this.addSettingTab(new SmartWorkflowSettingTab(this.app, this));
 
@@ -834,19 +890,6 @@ export default class SmartWorkflowPlugin extends Plugin {
     if (this.settings.selectionToolbar.enabled) {
       // 触发延迟初始化
       this.selectionToolbarManager;
-    }
-
-    // 注册自动归档元数据监听（如果启用）
-    if (this.settings.autoArchive?.enabled) {
-      this.registerEvent(
-        this.app.metadataCache.on('changed', (file: TFile) => {
-          const metadata = this.app.metadataCache.getFileCache(file);
-          if (this.autoArchiveService.shouldAutoArchive(file, metadata)) {
-            this.autoArchiveService.processAutoArchive(file);
-          }
-        })
-      );
-      debugLog('[SmartWorkflowPlugin] Auto Archive metadata listener registered');
     }
   }
 

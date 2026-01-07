@@ -1,6 +1,6 @@
 /**
  * 标签生成设置渲染器
- * 负责渲染AI标签生成和归档配置
+ * 负责渲染 AI 标签生成和智能归档配置
  */
 
 import { Setting } from 'obsidian';
@@ -21,128 +21,15 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
     this.context = context;
     const containerEl = context.containerEl;
 
-    // AI模型绑定
-    this.renderModelBinding(containerEl);
-
-    // AI标签生成设置
+    // AI 标签生成设置（包含模型配置）
     this.renderTaggingSettings(containerEl);
 
-    // 智能归档设置
+    // 智能归档设置（包含模型配置）
     this.renderArchivingSettings(containerEl);
   }
 
   /**
-   * 渲染模型绑定设置
-   */
-  private renderModelBinding(containerEl: HTMLElement): void {
-    // 获取当前 tagging 功能的解析配置
-    const resolvedConfig = this.context.configManager.resolveFeatureConfig('tagging');
-    const currentProvider = resolvedConfig?.provider;
-    const currentModel = resolvedConfig?.model;
-
-    const bindingCard = containerEl.createDiv({ cls: 'settings-card' });
-
-    // 模型绑定设置标题
-    new Setting(bindingCard)
-      .setName(t('tagging.settings.modelConfig'))
-      .setDesc(t('tagging.settings.modelConfigDesc'))
-      .setHeading();
-
-    const bindingSetting = new Setting(bindingCard)
-      .setName(t('tagging.settings.selectModel'))
-      .setDesc(t('tagging.settings.selectModelDesc'));
-
-    // 使用自定义 select 元素支持 optgroup
-    bindingSetting.addDropdown(dropdown => {
-      const selectEl = dropdown.selectEl;
-      selectEl.empty();
-
-      // 设置最小宽度
-      selectEl.style.minWidth = '200px';
-
-      // 添加空选项（不绑定）
-      const emptyOption = selectEl.createEl('option', {
-        value: '',
-        text: t('tagging.settings.notBound')
-      });
-      emptyOption.setAttribute('value', '');
-
-      // 按供应商分组添加选项
-      const providers = this.context.configManager.getProviders();
-      providers.forEach(provider => {
-        if (provider.models.length === 0) return;
-
-        // 创建 optgroup
-        const optgroup = selectEl.createEl('optgroup', { attr: { label: provider.name } });
-
-        // 添加模型选项
-        provider.models.forEach(model => {
-          const displayName = model.displayName || model.name;
-          const option = optgroup.createEl('option', {
-            value: `${provider.id}|${model.id}`,
-            text: displayName
-          });
-          option.setAttribute('value', `${provider.id}|${model.id}`);
-        });
-      });
-
-      // 设置当前值
-      const currentValue = currentProvider && currentModel
-        ? `${currentProvider.id}|${currentModel.id}`
-        : '';
-      selectEl.value = currentValue;
-
-      // 监听变化
-      dropdown.onChange(async (value) => {
-        if (!value) {
-          // 清除绑定
-          delete this.context.plugin.settings.featureBindings.tagging;
-        } else {
-          const [providerId, modelId] = value.split('|');
-          const existingBinding = this.context.plugin.settings.featureBindings.tagging;
-          this.context.plugin.settings.featureBindings.tagging = {
-            providerId,
-            modelId,
-            promptTemplate: existingBinding?.promptTemplate ?? this.context.plugin.settings.tagging.promptTemplate
-          };
-        }
-        await this.saveSettings();
-        this.refreshDisplay();
-      });
-    });
-
-    // 显示当前绑定状态
-    if (currentProvider && currentModel) {
-      const displayName = currentModel.displayName || currentModel.name;
-      const statusEl = bindingCard.createDiv({ cls: 'feature-binding-status' });
-      statusEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-muted)',
-        'margin-top': '8px',
-        'margin-bottom': '16px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      statusEl.setText(t('tagging.settings.currentBinding', { provider: currentProvider.name, model: displayName }));
-    } else {
-      // 显示警告：未绑定模型
-      const warningEl = bindingCard.createDiv({ cls: 'feature-binding-warning' });
-      warningEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-error)',
-        'margin-top': '8px',
-        'margin-bottom': '16px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      warningEl.setText(t('tagging.settings.notBoundWarning'));
-    }
-  }
-
-  /**
-   * 渲染标签生成设置
+   * 渲染 AI 标签生成设置
    */
   private renderTaggingSettings(containerEl: HTMLElement): void {
     // 确保配置存在
@@ -174,6 +61,9 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
     if (!settings.enabled) {
       return; // 如果未启用，不显示其他选项
     }
+
+    // AI 模型配置（放在启用开关之后）
+    this.renderTaggingModelBinding(taggingCard);
 
     // 标签数量
     new Setting(taggingCard)
@@ -245,7 +135,7 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
           await this.saveSettings();
         }));
 
-    // Prompt模板
+    // Prompt 模板
     new Setting(taggingCard)
       .setName(t('tagging.settings.promptTemplate'))
       .setDesc(t('tagging.settings.promptTemplateDesc'))
@@ -276,30 +166,26 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
   }
 
   /**
-   * 渲染归档 AI 模型绑定设置
+   * 渲染标签生成 AI 模型绑定
    */
-  private renderArchivingModelBinding(containerEl: HTMLElement): void {
-    // 获取当前 categorizing 功能的解析配置
-    const resolvedConfig = this.context.configManager.resolveFeatureConfig('categorizing');
+  private renderTaggingModelBinding(containerEl: HTMLElement): void {
+    const resolvedConfig = this.context.configManager.resolveFeatureConfig('tagging');
     const currentProvider = resolvedConfig?.provider;
     const currentModel = resolvedConfig?.model;
 
     const bindingSetting = new Setting(containerEl)
-      .setName(t('archiving.settings.modelConfig'))
-      .setDesc(t('archiving.settings.selectModelDesc'));
+      .setName(t('tagging.settings.selectModel'))
+      .setDesc(t('tagging.settings.selectModelDesc'));
 
-    // 使用自定义 select 元素支持 optgroup
     bindingSetting.addDropdown(dropdown => {
       const selectEl = dropdown.selectEl;
       selectEl.empty();
-
-      // 设置最小宽度
       selectEl.style.minWidth = '200px';
 
-      // 添加空选项（不绑定）
+      // 添加空选项
       const emptyOption = selectEl.createEl('option', {
         value: '',
-        text: t('archiving.settings.notBound')
+        text: t('tagging.settings.notBound')
       });
       emptyOption.setAttribute('value', '');
 
@@ -307,11 +193,7 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
       const providers = this.context.configManager.getProviders();
       providers.forEach(provider => {
         if (provider.models.length === 0) return;
-
-        // 创建 optgroup
         const optgroup = selectEl.createEl('optgroup', { attr: { label: provider.name } });
-
-        // 添加模型选项
         provider.models.forEach(model => {
           const displayName = model.displayName || model.name;
           const option = optgroup.createEl('option', {
@@ -328,18 +210,16 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
         : '';
       selectEl.value = currentValue;
 
-      // 监听变化
       dropdown.onChange(async (value) => {
         if (!value) {
-          // 清除绑定
-          delete this.context.plugin.settings.featureBindings.categorizing;
+          delete this.context.plugin.settings.featureBindings.tagging;
         } else {
           const [providerId, modelId] = value.split('|');
-          const existingBinding = this.context.plugin.settings.featureBindings.categorizing;
-          this.context.plugin.settings.featureBindings.categorizing = {
+          const existingBinding = this.context.plugin.settings.featureBindings.tagging;
+          this.context.plugin.settings.featureBindings.tagging = {
             providerId,
             modelId,
-            promptTemplate: existingBinding?.promptTemplate ?? this.context.plugin.settings.archiving.promptTemplate
+            promptTemplate: existingBinding?.promptTemplate ?? this.context.plugin.settings.tagging.promptTemplate
           };
         }
         await this.saveSettings();
@@ -347,7 +227,7 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
       });
     });
 
-    // 显示当前绑定状态
+    // 显示绑定状态
     if (currentProvider && currentModel) {
       const displayName = currentModel.displayName || currentModel.name;
       const statusEl = containerEl.createDiv({ cls: 'feature-binding-status' });
@@ -360,9 +240,8 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
         'background-color': 'var(--background-primary)',
         'border-radius': '4px'
       });
-      statusEl.setText(t('archiving.settings.currentBinding', { provider: currentProvider.name, model: displayName }));
+      statusEl.setText(t('tagging.settings.currentBinding', { provider: currentProvider.name, model: displayName }));
     } else {
-      // 显示警告：未绑定模型
       const warningEl = containerEl.createDiv({ cls: 'feature-binding-warning' });
       warningEl.setCssProps({
         'font-size': '0.85em',
@@ -373,15 +252,14 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
         'background-color': 'var(--background-primary)',
         'border-radius': '4px'
       });
-      warningEl.setText(t('archiving.settings.notBoundWarning'));
+      warningEl.setText(t('tagging.settings.notBoundWarning'));
     }
   }
 
   /**
-   * 渲染归档设置
+   * 渲染智能归档设置
    */
   private renderArchivingSettings(containerEl: HTMLElement): void {
-    // 确保配置存在
     if (!this.context.plugin.settings.archiving) {
       this.context.plugin.settings.archiving = { ...DEFAULT_ARCHIVING_SETTINGS };
     }
@@ -394,9 +272,6 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
       .setHeading();
 
     const settings = this.context.plugin.settings.archiving;
-
-    // AI 模型配置
-    this.renderArchivingModelBinding(archivingCard);
 
     // 启用归档
     new Setting(archivingCard)
@@ -411,8 +286,11 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
         }));
 
     if (!settings.enabled) {
-      return; // 如果未启用，不显示其他选项
+      return;
     }
+
+    // AI 模型配置（放在启用开关之后）
+    this.renderArchivingModelBinding(archivingCard);
 
     // 归档基础文件夹
     new Setting(archivingCard)
@@ -518,7 +396,7 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
           await this.saveSettings();
         }));
 
-    // Prompt模板
+    // Prompt 模板
     new Setting(archivingCard)
       .setName(t('archiving.settings.promptTemplate'))
       .setDesc(t('archiving.settings.promptTemplateDesc'))
@@ -546,5 +424,92 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
           await this.saveSettings();
           this.refreshDisplay();
         }));
+  }
+
+  /**
+   * 渲染归档 AI 模型绑定
+   */
+  private renderArchivingModelBinding(containerEl: HTMLElement): void {
+    const resolvedConfig = this.context.configManager.resolveFeatureConfig('categorizing');
+    const currentProvider = resolvedConfig?.provider;
+    const currentModel = resolvedConfig?.model;
+
+    const bindingSetting = new Setting(containerEl)
+      .setName(t('archiving.settings.selectModel'))
+      .setDesc(t('archiving.settings.selectModelDesc'));
+
+    bindingSetting.addDropdown(dropdown => {
+      const selectEl = dropdown.selectEl;
+      selectEl.empty();
+      selectEl.style.minWidth = '200px';
+
+      const emptyOption = selectEl.createEl('option', {
+        value: '',
+        text: t('archiving.settings.notBound')
+      });
+      emptyOption.setAttribute('value', '');
+
+      const providers = this.context.configManager.getProviders();
+      providers.forEach(provider => {
+        if (provider.models.length === 0) return;
+        const optgroup = selectEl.createEl('optgroup', { attr: { label: provider.name } });
+        provider.models.forEach(model => {
+          const displayName = model.displayName || model.name;
+          const option = optgroup.createEl('option', {
+            value: `${provider.id}|${model.id}`,
+            text: displayName
+          });
+          option.setAttribute('value', `${provider.id}|${model.id}`);
+        });
+      });
+
+      const currentValue = currentProvider && currentModel
+        ? `${currentProvider.id}|${currentModel.id}`
+        : '';
+      selectEl.value = currentValue;
+
+      dropdown.onChange(async (value) => {
+        if (!value) {
+          delete this.context.plugin.settings.featureBindings.categorizing;
+        } else {
+          const [providerId, modelId] = value.split('|');
+          const existingBinding = this.context.plugin.settings.featureBindings.categorizing;
+          this.context.plugin.settings.featureBindings.categorizing = {
+            providerId,
+            modelId,
+            promptTemplate: existingBinding?.promptTemplate ?? this.context.plugin.settings.archiving.promptTemplate
+          };
+        }
+        await this.saveSettings();
+        this.refreshDisplay();
+      });
+    });
+
+    if (currentProvider && currentModel) {
+      const displayName = currentModel.displayName || currentModel.name;
+      const statusEl = containerEl.createDiv({ cls: 'feature-binding-status' });
+      statusEl.setCssProps({
+        'font-size': '0.85em',
+        color: 'var(--text-muted)',
+        'margin-top': '8px',
+        'margin-bottom': '16px',
+        padding: '8px 12px',
+        'background-color': 'var(--background-primary)',
+        'border-radius': '4px'
+      });
+      statusEl.setText(t('archiving.settings.currentBinding', { provider: currentProvider.name, model: displayName }));
+    } else {
+      const warningEl = containerEl.createDiv({ cls: 'feature-binding-warning' });
+      warningEl.setCssProps({
+        'font-size': '0.85em',
+        color: 'var(--text-error)',
+        'margin-top': '8px',
+        'margin-bottom': '16px',
+        padding: '8px 12px',
+        'background-color': 'var(--background-primary)',
+        'border-radius': '4px'
+      });
+      warningEl.setText(t('archiving.settings.notBoundWarning'));
+    }
   }
 }

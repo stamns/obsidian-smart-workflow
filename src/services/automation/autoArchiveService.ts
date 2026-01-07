@@ -2,11 +2,11 @@
  * AutoArchiveService - 自动归档服务
  *
  * 功能:
- * - 监听文件 frontmatter 变化
- * - 当 status 变为 finish 时自动执行标签生成和归档
+ * - 通过命令/菜单手动触发
+ * - 自动生成标签 + 智能归档
  */
 
-import { TFile, App, CachedMetadata, Notice } from 'obsidian';
+import { TFile, App, Notice } from 'obsidian';
 import { SmartWorkflowSettings } from '../../settings/settings';
 import { TagService } from '../tagging/tagService';
 import { CategoryService } from '../categorizing/categoryService';
@@ -24,11 +24,8 @@ export class AutoArchiveService {
   private categoryService: CategoryService;
   private archiveService: ArchiveService;
 
-  // 去抖动计时器映射 (文件路径 -> 定时器ID)
-  private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
-
-  // 记录已处理的文件,避免重复处理
-  private processedFiles: Set<string> = new Set();
+  // 正在处理中的文件 (防止重复触发)
+  private processingFiles: Set<string> = new Set();
 
   constructor(
     app: App,
@@ -45,24 +42,15 @@ export class AutoArchiveService {
   }
 
   /**
-   * 检查文件是否应该被自动归档
+   * 检查文件是否可以执行自动归档
    * @param file 文件对象
-   * @param metadata 文件元数据
-   * @returns 是否应该触发自动归档
+   * @returns 是否可以执行
    */
-  shouldAutoArchive(file: TFile, metadata: CachedMetadata | null): boolean {
+  canProcess(file: TFile): boolean {
     // 检查自动归档是否启用
     if (!this.settings.autoArchive?.enabled) {
       return false;
     }
-
-    if (!metadata?.frontmatter) {
-      return false;
-    }
-
-    const frontmatter = metadata.frontmatter;
-    const triggerField = this.settings.autoArchive.triggerField || 'status';
-    const triggerStatus = this.settings.autoArchive.triggerStatus || 'finish';
 
     // 检查是否在排除列表中
     const excludeFolders = this.settings.autoArchive.excludeFolders || [
@@ -73,70 +61,30 @@ export class AutoArchiveService {
       file.path.startsWith(folder + '/')
     );
     if (isExcluded) {
-      debugLog('[AutoArchiveService] 文件在排除列表中:', file.path);
       return false;
     }
 
     // 检查是否已在归档区
     if (!this.archiveService.canArchive(file)) {
-      debugLog('[AutoArchiveService] 文件已在归档区:', file.path);
       return false;
     }
 
-    // 检查状态字段
-    const statusValue = frontmatter[triggerField];
-    const shouldTrigger = statusValue === triggerStatus;
-
-    if (shouldTrigger) {
-      debugLog('[AutoArchiveService] 检测到触发状态:', {
-        file: file.path,
-        field: triggerField,
-        value: statusValue
-      });
-    }
-
-    return shouldTrigger;
+    return true;
   }
 
   /**
-   * 处理文件自动归档
-   * @param file 要处理的文件
-   */
-  async processAutoArchive(file: TFile): Promise<void> {
-    const debounceDelay = this.settings.autoArchive?.debounceDelay || 2000;
-
-    // 清除之前的定时器
-    const existingTimer = this.debounceTimers.get(file.path);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    // 设置去抖动延迟
-    const timer = setTimeout(async () => {
-      try {
-        await this.executeAutoArchive(file);
-      } catch (error) {
-        errorLog('[AutoArchiveService] 自动归档执行失败:', error);
-        new Notice(t('autoArchive.notices.failed', { message: error instanceof Error ? error.message : String(error) }));
-      } finally {
-        this.debounceTimers.delete(file.path);
-      }
-    }, debounceDelay);
-
-    this.debounceTimers.set(file.path, timer);
-  }
-
-  /**
-   * 执行自动归档流程
+   * 执行自动归档流程 (手动触发)
    * @param file 文件
    */
-  private async executeAutoArchive(file: TFile): Promise<void> {
-    // 避免重复处理同一文件
-    const cacheKey = `${file.path}:${file.stat.mtime}`;
-    if (this.processedFiles.has(cacheKey)) {
-      debugLog('[AutoArchiveService] 文件已处理,跳过:', file.path);
+  async execute(file: TFile): Promise<void> {
+    // 检查是否正在处理中
+    if (this.processingFiles.has(file.basename)) {
+      debugLog('[AutoArchiveService] 文件正在处理中,跳过:', file.path);
       return;
     }
+
+    // 标记为正在处理
+    this.processingFiles.add(file.basename);
 
     debugLog('[AutoArchiveService] 开始自动归档流程:', file.path);
     new Notice(t('autoArchive.notices.processing', { filename: file.basename }));
@@ -154,20 +102,14 @@ export class AutoArchiveService {
         await this.autoArchiveFile(file);
       }
 
-      // 标记为已处理
-      this.processedFiles.add(cacheKey);
-
-      // 限制缓存大小(最多保存1000个)
-      if (this.processedFiles.size > 1000) {
-        const firstKey = this.processedFiles.values().next().value;
-        this.processedFiles.delete(firstKey);
-      }
-
       new Notice(t('autoArchive.notices.completed', { filename: file.basename }));
       debugLog('[AutoArchiveService] 自动归档流程完成:', file.path);
     } catch (error) {
       errorLog('[AutoArchiveService] 自动归档流程失败:', error);
-      throw error;
+      new Notice(t('autoArchive.notices.failed', { message: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      // 移除处理中标记
+      this.processingFiles.delete(file.basename);
     }
   }
 
@@ -245,11 +187,6 @@ export class AutoArchiveService {
    * 清理资源
    */
   cleanup(): void {
-    // 清除所有计时器
-    for (const timer of this.debounceTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.debounceTimers.clear();
-    this.processedFiles.clear();
+    this.processingFiles.clear();
   }
 }

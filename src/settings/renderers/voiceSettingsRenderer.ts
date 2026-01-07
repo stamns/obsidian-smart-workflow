@@ -6,6 +6,7 @@
 import { Setting, Notice, setIcon, TextAreaComponent } from 'obsidian';
 import type { RendererContext } from '../types';
 import { BaseSettingsRenderer } from './baseRenderer';
+import { createHotkeyInput } from '../components';
 import { t } from '../../i18n';
 import type { 
   VoiceASRProvider, 
@@ -594,113 +595,6 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
   // ============================================================================
 
   /**
-   * 获取命令的当前快捷键
-   */
-  private getCommandHotkey(commandId: string): string {
-    // 使用 manifest 中的插件 ID
-    const fullCommandId = `obsidian-smart-workflow:${commandId}`;
-    
-    try {
-      // @ts-expect-error - 访问 Obsidian 内部 API
-      const hotkeyManager = this.context.app.hotkeyManager;
-      
-      if (!hotkeyManager) {
-        console.warn('[VoiceSettings] hotkeyManager not found');
-        return '';
-      }
-      
-      // 使用 getHotkeys 方法获取快捷键
-      const hotkeys = hotkeyManager.getHotkeys(fullCommandId);
-      
-      if (hotkeys && hotkeys.length > 0) {
-        return this.formatHotkey(hotkeys[0]);
-      }
-    } catch (e) {
-      console.error('[VoiceSettings] Error getting hotkey:', e);
-    }
-    
-    return '';
-  }
-
-  /**
-   * 格式化快捷键显示
-   */
-  private formatHotkey(hotkey: { modifiers: string[]; key: string }): string {
-    const parts: string[] = [];
-    
-    if (hotkey.modifiers.includes('Ctrl') || hotkey.modifiers.includes('Mod')) {
-      parts.push('Ctrl');
-    }
-    if (hotkey.modifiers.includes('Alt')) {
-      parts.push('Alt');
-    }
-    if (hotkey.modifiers.includes('Shift')) {
-      parts.push('Shift');
-    }
-    if (hotkey.modifiers.includes('Meta')) {
-      parts.push('Meta');
-    }
-    
-    // 格式化按键名称
-    let keyName = hotkey.key;
-    if (keyName.length === 1) {
-      keyName = keyName.toUpperCase();
-    } else if (keyName.startsWith('Key')) {
-      keyName = keyName.slice(3);
-    } else if (keyName.startsWith('Digit')) {
-      keyName = keyName.slice(5);
-    }
-    
-    parts.push(keyName);
-    return parts.join(' + ');
-  }
-
-  /**
-   * 设置命令的快捷键
-   */
-  private async setCommandHotkey(commandId: string, hotkey: { modifiers: string[]; key: string } | null): Promise<void> {
-    // 使用 manifest 中的插件 ID
-    const fullCommandId = `obsidian-smart-workflow:${commandId}`;
-    
-    console.log('[VoiceSettings] Setting hotkey for:', fullCommandId, hotkey);
-    
-    try {
-      // @ts-expect-error - 访问 Obsidian 内部 API
-      const hotkeyManager = this.context.app.hotkeyManager;
-      
-      if (!hotkeyManager) {
-        console.error('[VoiceSettings] hotkeyManager not found');
-        return;
-      }
-
-      if (hotkey) {
-        // 使用 setHotkeys 方法设置快捷键
-        hotkeyManager.setHotkeys(fullCommandId, [hotkey]);
-        console.log('[VoiceSettings] Called setHotkeys with:', [hotkey]);
-      } else {
-        // 使用 removeHotkeys 清除快捷键
-        hotkeyManager.removeHotkeys(fullCommandId);
-        console.log('[VoiceSettings] Called removeHotkeys');
-      }
-      
-      // 保存配置
-      await hotkeyManager.save();
-      console.log('[VoiceSettings] Saved');
-      
-      // 重新 bake 以应用更改
-      hotkeyManager.bake();
-      console.log('[VoiceSettings] Baked');
-      
-      // 验证设置
-      const currentHotkeys = hotkeyManager.getHotkeys(fullCommandId);
-      console.log('[VoiceSettings] Current hotkeys after set:', currentHotkeys);
-      
-    } catch (e) {
-      console.error('[VoiceSettings] Error setting hotkey:', e);
-    }
-  }
-
-  /**
    * 渲染快捷键设置
    */
   private renderHotkeySettings(containerEl: HTMLElement): void {
@@ -712,136 +606,39 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
       .setDesc(t('voice.settings.hotkeyConfigDesc'))
       .setHeading();
 
-    // 命令快捷键设置
+    // 使用封装的快捷键组件
     // 听写模式命令
-    this.renderHotkeyItem(card, 'voice-dictation', t('voice.settings.dictationCommand'), t('voice.settings.dictationCommandDesc'));
+    createHotkeyInput({
+      app: this.context.app,
+      containerEl: card,
+      commandId: 'voice-dictation',
+      name: t('voice.settings.dictationCommand'),
+      description: t('voice.settings.dictationCommandDesc'),
+      i18nPrefix: 'voice.settings',
+      onRefresh: () => this.refreshDisplay(),
+    });
     
     // 助手模式命令
-    this.renderHotkeyItem(card, 'voice-assistant', t('voice.settings.assistantCommand'), t('voice.settings.assistantCommandDesc'));
+    createHotkeyInput({
+      app: this.context.app,
+      containerEl: card,
+      commandId: 'voice-assistant',
+      name: t('voice.settings.assistantCommand'),
+      description: t('voice.settings.assistantCommandDesc'),
+      i18nPrefix: 'voice.settings',
+      onRefresh: () => this.refreshDisplay(),
+    });
     
     // 取消录音命令
-    this.renderHotkeyItem(card, 'voice-cancel', t('voice.settings.cancelCommand'), t('voice.settings.cancelCommandDesc'));
-  }
-
-  /**
-   * 渲染单个快捷键设置项
-   */
-  private renderHotkeyItem(containerEl: HTMLElement, commandId: string, name: string, description: string): void {
-    const currentHotkey = this.getCommandHotkey(commandId);
-    
-    const setting = new Setting(containerEl)
-      .setName(name)
-      .setDesc(description);
-
-    // 快捷键按钮容器
-    const hotkeyContainer = setting.controlEl.createDiv({ cls: 'voice-hotkey-container' });
-    hotkeyContainer.style.display = 'flex';
-    hotkeyContainer.style.alignItems = 'center';
-    hotkeyContainer.style.gap = '8px';
-
-    // 快捷键显示/录入按钮
-    const hotkeyBtn = hotkeyContainer.createEl('button', { cls: 'voice-hotkey-btn setting-hotkey' });
-    hotkeyBtn.style.minWidth = '100px';
-    hotkeyBtn.style.padding = '4px 12px';
-    hotkeyBtn.style.borderRadius = '4px';
-    hotkeyBtn.style.border = '1px solid var(--background-modifier-border)';
-    hotkeyBtn.style.backgroundColor = 'var(--background-primary)';
-    hotkeyBtn.style.cursor = 'pointer';
-    hotkeyBtn.style.fontFamily = 'inherit';
-    hotkeyBtn.style.fontSize = '0.9em';
-    
-    const updateButtonText = () => {
-      const hotkey = this.getCommandHotkey(commandId);
-      if (hotkey) {
-        hotkeyBtn.setText(hotkey);
-        hotkeyBtn.style.color = 'var(--text-normal)';
-      } else {
-        hotkeyBtn.setText(t('voice.settings.noHotkeySet'));
-        hotkeyBtn.style.color = 'var(--text-faint)';
-      }
-    };
-    
-    updateButtonText();
-
-    let isRecording = false;
-    
-    hotkeyBtn.addEventListener('click', () => {
-      if (isRecording) return;
-      
-      isRecording = true;
-      hotkeyBtn.setText(t('voice.settings.pressKey'));
-      hotkeyBtn.style.color = 'var(--text-accent)';
-      hotkeyBtn.style.borderColor = 'var(--interactive-accent)';
-      
-      console.log('[VoiceSettings] Started recording hotkey for:', commandId);
-      
-      const handleKeyDown = async (e: KeyboardEvent) => {
-        console.log('[VoiceSettings] KeyDown event:', e.key, 'code:', e.code, 'ctrl:', e.ctrlKey, 'alt:', e.altKey, 'shift:', e.shiftKey);
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // 忽略单独的修饰键
-        if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-          return;
-        }
-        
-        // Escape 取消录入
-        if (e.key === 'Escape') {
-          console.log('[VoiceSettings] Cancelled by Escape');
-          cleanup();
-          updateButtonText();
-          return;
-        }
-        
-        // 构建快捷键 - 允许单个按键
-        const modifiers: string[] = [];
-        if (e.ctrlKey || e.metaKey) modifiers.push('Mod');
-        if (e.altKey) modifiers.push('Alt');
-        if (e.shiftKey) modifiers.push('Shift');
-        
-        const hotkey = {
-          modifiers,
-          key: e.key,
-        };
-        
-        console.log('[VoiceSettings] Setting hotkey:', hotkey);
-        await this.setCommandHotkey(commandId, hotkey);
-        cleanup();
-        this.refreshDisplay(); // 刷新以显示恢复默认按钮
-      };
-      
-      const cleanup = () => {
-        isRecording = false;
-        hotkeyBtn.style.borderColor = 'var(--background-modifier-border)';
-        document.removeEventListener('keydown', handleKeyDown, true);
-      };
-      
-      document.addEventListener('keydown', handleKeyDown, true);
-      
-      // 点击其他地方取消
-      setTimeout(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-          if (!hotkeyBtn.contains(e.target as Node)) {
-            cleanup();
-            updateButtonText();
-            document.removeEventListener('click', handleClickOutside, true);
-          }
-        };
-        document.addEventListener('click', handleClickOutside, true);
-      }, 100);
+    createHotkeyInput({
+      app: this.context.app,
+      containerEl: card,
+      commandId: 'voice-cancel',
+      name: t('voice.settings.cancelCommand'),
+      description: t('voice.settings.cancelCommandDesc'),
+      i18nPrefix: 'voice.settings',
+      onRefresh: () => this.refreshDisplay(),
     });
-
-    // 恢复默认按钮（清除快捷键）- 仅在有快捷键时显示
-    if (currentHotkey) {
-      const resetBtn = hotkeyContainer.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': t('voice.settings.resetHotkey') } });
-      setIcon(resetBtn, 'rotate-ccw');
-      resetBtn.style.color = 'var(--text-muted)';
-      resetBtn.addEventListener('click', async () => {
-        await this.setCommandHotkey(commandId, null);
-        this.refreshDisplay();
-      });
-    }
   }
 
   // ============================================================================
