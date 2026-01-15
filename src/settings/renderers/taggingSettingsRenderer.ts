@@ -197,9 +197,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
    * 渲染标签生成 AI 模型绑定
    */
   private renderTaggingModelBinding(containerEl: HTMLElement): void {
-    const resolvedConfig = this.context.configManager.resolveFeatureConfig('tagging');
-    const currentProvider = resolvedConfig?.provider;
-    const currentModel = resolvedConfig?.model;
+    const currentBinding = this.context.plugin.settings.featureBindings.tagging;
+    const currentProvider = currentBinding
+      ? this.context.configManager.getProvider(currentBinding.providerId)
+      : undefined;
+    const currentModel = currentProvider && currentBinding
+      ? currentProvider.models.find(model => model.id === currentBinding.modelId)
+      : undefined;
 
     const bindingSetting = new Setting(containerEl)
       .setName(t('tagging.settings.selectModel'))
@@ -239,10 +243,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
       selectEl.value = currentValue;
 
       dropdown.onChange(async (value) => {
+        let providerId: string | undefined;
+        let modelId: string | undefined;
+
         if (!value) {
           delete this.context.plugin.settings.featureBindings.tagging;
         } else {
-          const [providerId, modelId] = value.split('|');
+          [providerId, modelId] = value.split('|');
           const existingBinding = this.context.plugin.settings.featureBindings.tagging;
           this.context.plugin.settings.featureBindings.tagging = {
             providerId,
@@ -251,6 +258,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
           };
         }
         await this.saveSettings();
+        this.renderBindingStatus(
+          statusContainer,
+          providerId,
+          modelId,
+          'tagging.settings.currentBinding',
+          'tagging.settings.notBoundWarning'
+        );
       });
     });
 
@@ -259,32 +273,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
     const statusContainer = containerEl.createDiv({ cls: `conditional-section-${statusContainerId}` });
     
     // 显示绑定状态
-    if (currentProvider && currentModel) {
-      const displayName = currentModel.displayName || currentModel.name;
-      const statusEl = statusContainer.createDiv({ cls: 'feature-binding-status' });
-      statusEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-muted)',
-        'margin-top': '8px',
-        'margin-bottom': '16px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      statusEl.setText(t('tagging.settings.currentBinding', { provider: currentProvider.name, model: displayName }));
-    } else {
-      const warningEl = statusContainer.createDiv({ cls: 'feature-binding-warning' });
-      warningEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-error)',
-        'margin-top': '8px',
-        'margin-bottom': '16px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      warningEl.setText(t('tagging.settings.notBoundWarning'));
-    }
+    this.renderBindingStatus(
+      statusContainer,
+      currentProvider?.id,
+      currentModel?.id,
+      'tagging.settings.currentBinding',
+      'tagging.settings.notBoundWarning'
+    );
   }
 
   /**
@@ -489,9 +484,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
    * 渲染归档 AI 模型绑定
    */
   private renderArchivingModelBinding(containerEl: HTMLElement): void {
-    const resolvedConfig = this.context.configManager.resolveFeatureConfig('categorizing');
-    const currentProvider = resolvedConfig?.provider;
-    const currentModel = resolvedConfig?.model;
+    const currentBinding = this.context.plugin.settings.featureBindings.categorizing;
+    const currentProvider = currentBinding
+      ? this.context.configManager.getProvider(currentBinding.providerId)
+      : undefined;
+    const currentModel = currentProvider && currentBinding
+      ? currentProvider.models.find(model => model.id === currentBinding.modelId)
+      : undefined;
 
     const bindingSetting = new Setting(containerEl)
       .setName(t('archiving.settings.selectModel'))
@@ -528,10 +527,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
       selectEl.value = currentValue;
 
       dropdown.onChange(async (value) => {
+        let providerId: string | undefined;
+        let modelId: string | undefined;
+
         if (!value) {
           delete this.context.plugin.settings.featureBindings.categorizing;
         } else {
-          const [providerId, modelId] = value.split('|');
+          [providerId, modelId] = value.split('|');
           const existingBinding = this.context.plugin.settings.featureBindings.categorizing;
           this.context.plugin.settings.featureBindings.categorizing = {
             providerId,
@@ -540,6 +542,13 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
           };
         }
         await this.saveSettings();
+        this.renderBindingStatus(
+          statusContainer,
+          providerId,
+          modelId,
+          'archiving.settings.currentBinding',
+          'archiving.settings.notBoundWarning'
+        );
       });
     });
 
@@ -547,31 +556,51 @@ export class TaggingSettingsRenderer extends BaseSettingsRenderer {
     const statusContainerId = 'archiving-binding-status';
     const statusContainer = containerEl.createDiv({ cls: `conditional-section-${statusContainerId}` });
 
-    if (currentProvider && currentModel) {
-      const displayName = currentModel.displayName || currentModel.name;
-      const statusEl = statusContainer.createDiv({ cls: 'feature-binding-status' });
-      statusEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-muted)',
-        'margin-top': '8px',
-        'margin-bottom': '16px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      statusEl.setText(t('archiving.settings.currentBinding', { provider: currentProvider.name, model: displayName }));
-    } else {
-      const warningEl = statusContainer.createDiv({ cls: 'feature-binding-warning' });
-      warningEl.setCssProps({
-        'font-size': '0.85em',
-        color: 'var(--text-error)',
-        'margin-top': '8px',
-        'margin-bottom': '16px',
-        padding: '8px 12px',
-        'background-color': 'var(--background-primary)',
-        'border-radius': '4px'
-      });
-      warningEl.setText(t('archiving.settings.notBoundWarning'));
+    this.renderBindingStatus(
+      statusContainer,
+      currentProvider?.id,
+      currentModel?.id,
+      'archiving.settings.currentBinding',
+      'archiving.settings.notBoundWarning'
+    );
+  }
+
+  private renderBindingStatus(
+    containerEl: HTMLElement,
+    providerId: string | undefined,
+    modelId: string | undefined,
+    statusTextKey: string,
+    warningTextKey: string
+  ): void {
+    containerEl.empty();
+
+    const provider = providerId ? this.context.configManager.getProvider(providerId) : undefined;
+    const model = provider && modelId
+      ? provider.models.find(item => item.id === modelId)
+      : undefined;
+
+    if (provider && model) {
+      const displayName = model.displayName || model.name;
+      const statusEl = containerEl.createDiv({ cls: 'feature-binding-status' });
+      this.applyBindingStatusStyle(statusEl, 'var(--text-muted)');
+      statusEl.setText(t(statusTextKey, { provider: provider.name, model: displayName }));
+      return;
     }
+
+    const warningEl = containerEl.createDiv({ cls: 'feature-binding-warning' });
+    this.applyBindingStatusStyle(warningEl, 'var(--text-error)');
+    warningEl.setText(t(warningTextKey));
+  }
+
+  private applyBindingStatusStyle(element: HTMLElement, color: string): void {
+    element.setCssProps({
+      'font-size': '0.85em',
+      color,
+      'margin-top': '8px',
+      'margin-bottom': '16px',
+      padding: '8px 12px',
+      'background-color': 'var(--background-primary)',
+      'border-radius': '4px'
+    });
   }
 }
