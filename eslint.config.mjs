@@ -31,6 +31,16 @@ export default [
     },
   },
   {
-    ignores: ['esbuild.config.mjs', 'eslint.config.mjs', 'scripts/**', 'main.js', 'node_modules/**', 'tests/**/*.js'],
+    ignores: [
+      'esbuild.config.mjs',
+      'eslint.config.mjs',
+      'scripts/**',
+      'main.js',
+      'plugin-package/**',
+      'node_modules/**',
+      'tests/**/*.js',
+      'binaries/**',
+      'rust-servers/**',
+    ],
   },
 ];
