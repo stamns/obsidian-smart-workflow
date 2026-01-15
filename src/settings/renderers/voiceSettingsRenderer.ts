@@ -766,6 +766,8 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
     toggleEl.addEventListener('click', async () => {
       const newEnabled = !this.context.plugin.settings.voice.enabled;
       this.context.plugin.settings.voice.enabled = newEnabled;
+      // 同步更新 featureVisibility.voice.enabled
+      this.context.plugin.settings.featureVisibility.voice.enabled = newEnabled;
       await this.saveSettings();
       
       // 更新开关样式
@@ -791,9 +793,6 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 当语音功能启用时显示的所有设置
    */
   private renderEnabledSettings(containerEl: HTMLElement): void {
-    // 状态表盘（iOS 风格）
-    this.renderStatusDashboard(containerEl);
-
     // 快捷键说明卡片
     this.renderHotkeySettings(containerEl);
 

@@ -1,5 +1,5 @@
 import type { Menu, WorkspaceLeaf, WorkspaceLeaf as WL } from 'obsidian';
-import { Plugin, TFile, MarkdownView, Modal, Setting, Platform, normalizePath } from 'obsidian';
+import { Plugin, TFile, MarkdownView, Modal, Setting, Platform, normalizePath, setIcon } from 'obsidian';
 import type { SmartWorkflowSettings} from './settings/settings';
 import { DEFAULT_SETTINGS } from './settings/settings';
 import { SmartWorkflowSettingTab } from './settings/settingsTab';
@@ -21,6 +21,7 @@ import type { ServerManager } from './services/server/serverManager';
 // 语音输入服务
 import { VoiceInputService } from './services/voice/voiceInputService';
 import { VoiceOverlay } from './ui/voice/voiceOverlay';
+import { VoiceStatusDashboard } from './ui/voice/voiceStatusDashboard';
 import { TextInserter } from './services/voice/textInserter';
 import { LLMPostProcessor } from './services/voice/llmPostProcessor';
 import { AssistantProcessor } from './services/voice/assistantProcessor';
@@ -182,6 +183,16 @@ export default class SmartWorkflowPlugin extends Plugin {
 
   // 终端状态栏元素
   private _terminalStatusBarItem: HTMLElement | null = null;  // 按住模式相关
+  // 语音状态栏元素
+  private _voiceStatusBarItem: HTMLElement | null = null;
+  private _voiceStatusDashboard: VoiceStatusDashboard | null = null;
+  private _voiceStatusMenuEl: HTMLElement | null = null;
+  private _voiceStatusMenuContainer: HTMLElement | null = null;
+  private _voiceStatusMenuCloseHandler: ((event: MouseEvent) => void) | null = null;
+  private _voiceStatusMenuKeyHandler: ((event: KeyboardEvent) => void) | null = null;
+  private _voiceStatusMenuResizeHandler: (() => void) | null = null;
+  private _voiceStatusMenuLayoutHandler: ((event: Event) => void) | null = null;
+  private _voiceStatusMenuLayoutFrame: number | null = null;
   private pressModekeyupHandler: ((e: KeyboardEvent) => void) | null = null;
   private currentVoiceCommandId: string | null = null;
 
@@ -866,7 +877,8 @@ export default class SmartWorkflowPlugin extends Plugin {
     }
 
     // ========================================================================
-    // 语音输入命令注册（仅桌面端，使用 checkCallback 实现动态可见性）
+    // 语音输入命令注册（仅桌面端）
+    // 注意：热键需要始终可用，因此不能在 checkCallback 中检查 showInCommandPalette
     // ========================================================================
 
     // 语音听写命令
@@ -875,10 +887,16 @@ export default class SmartWorkflowPlugin extends Plugin {
         id: 'voice-dictation',
         name: t('commands.voiceDictation'),
         checkCallback: (checking: boolean) => {
-          // 检查可见性配置
-          if (!this.featureVisibilityManager.isVisibleAt('voice', 'showInCommandPalette')) {
+          // 检查功能是否启用（检查 voice.enabled，不检查命令面板可见性，以保证热键可用）
+          if (!this.settings.voice.enabled) {
             return false;
           }
+          
+          // 在命令面板中检查可见性
+          if (checking && !this.featureVisibilityManager.isVisibleAt('voice', 'showInCommandPalette')) {
+            return false;
+          }
+          
           if (!checking) {
             // 如果已在录音中，则停止录音（支持 toggle 行为）
             if (this._voiceInputService?.isRecording()) {
@@ -896,10 +914,16 @@ export default class SmartWorkflowPlugin extends Plugin {
         id: 'voice-assistant',
         name: t('commands.voiceAssistant'),
         checkCallback: (checking: boolean) => {
-          // 检查可见性配置
-          if (!this.featureVisibilityManager.isVisibleAt('voice', 'showInCommandPalette')) {
+          // 检查功能是否启用（检查 voice.enabled，不检查命令面板可见性，以保证热键可用）
+          if (!this.settings.voice.enabled) {
             return false;
           }
+          
+          // 在命令面板中检查可见性
+          if (checking && !this.featureVisibilityManager.isVisibleAt('voice', 'showInCommandPalette')) {
+            return false;
+          }
+          
           if (!checking) {
             // 如果已在录音中，则停止录音（支持 toggle 行为）
             if (this._voiceInputService?.isRecording()) {
@@ -1057,6 +1081,11 @@ export default class SmartWorkflowPlugin extends Plugin {
     // 初始化终端状态栏（仅桌面端）
     if (this.isTerminalEnabled()) {
       this.initTerminalStatusBar();
+    }
+
+    // 初始化语音状态栏（仅桌面端）
+    if (!Platform.isMobile) {
+      this.initVoiceStatusBar();
     }
 
     // 初始化选中文字浮动工具栏（如果启用）
@@ -1475,6 +1504,12 @@ export default class SmartWorkflowPlugin extends Plugin {
         ...loaded.serverConnection,
       }
     };
+    
+    // 同步 voice.enabled 和 featureVisibility.voice.enabled
+    // 确保两个字段保持一致（voice.enabled 为主）
+    if (this.settings.voice.enabled !== this.settings.featureVisibility.voice.enabled) {
+      this.settings.featureVisibility.voice.enabled = this.settings.voice.enabled;
+    }
   }
 
   /**
@@ -1587,6 +1622,15 @@ export default class SmartWorkflowPlugin extends Plugin {
       this._voiceOverlay.updateConfig({
         position: this.settings.voice.overlayPosition,
       });
+    }
+
+    // 更新语音状态栏（仅当已初始化时）
+    if (this._voiceStatusBarItem) {
+      this.updateVoiceStatusBar();
+      if (this._voiceStatusMenuEl) {
+        this.refreshVoiceStatusMenu();
+        this.positionVoiceStatusMenu();
+      }
     }
 
     // 更新服务器连接配置（仅当已初始化时）
@@ -1757,6 +1801,14 @@ export default class SmartWorkflowPlugin extends Plugin {
       }
     }
 
+    // 清理语音状态菜单与状态栏
+    this.closeVoiceStatusMenu();
+    if (this._voiceStatusBarItem) {
+      this._voiceStatusBarItem.remove();
+      this._voiceStatusBarItem = null;
+    }
+    this._voiceStatusDashboard = null;
+
     // 注意：VoiceInputService 直接使用 ServerManager，
     // _serverManager.shutdown() 会统一关闭服务器
 
@@ -1913,6 +1965,9 @@ export default class SmartWorkflowPlugin extends Plugin {
    */
   private async handleVoiceDictation(): Promise<void> {
     try {
+      // 确保服务已初始化
+      await this.getVoiceInputService();
+
       // 检查是否有活动编辑器
       if (!this.voiceInputService.hasActiveEditor()) {
         NoticeHelper.error(t('voiceInput.noActiveEditor'));
@@ -1956,6 +2011,9 @@ export default class SmartWorkflowPlugin extends Plugin {
    */
   private async handleVoiceAssistant(): Promise<void> {
     try {
+      // 确保服务已初始化
+      await this.getVoiceInputService();
+
       // 检查是否有活动编辑器
       if (!this.voiceInputService.hasActiveEditor()) {
         NoticeHelper.error(t('voiceInput.noActiveEditor'));
@@ -2381,6 +2439,205 @@ export default class SmartWorkflowPlugin extends Plugin {
   private removeTerminalButtonsFromEmptyViews(): void {
     const buttons = document.querySelectorAll('.smart-workflow-terminal-action');
     buttons.forEach((button) => button.remove());
+  }
+
+  /**
+   * 初始化语音状态栏
+   */
+  private initVoiceStatusBar(): void {
+    if (this._voiceStatusBarItem) {
+      return;
+    }
+
+    this._voiceStatusBarItem = this.addStatusBarItem();
+    this._voiceStatusBarItem.addClass('smart-workflow-voice-status-bar');
+    this._voiceStatusBarItem.setAttr('aria-label', t('voice.settings.title'));
+
+    const iconEl = this._voiceStatusBarItem.createSpan({ cls: 'voice-status-bar-icon' });
+    setIcon(iconEl, 'mic');
+
+    const labelEl = this._voiceStatusBarItem.createSpan({ cls: 'voice-status-bar-label' });
+    labelEl.setText(t('voice.settings.title'));
+
+    this._voiceStatusDashboard = new VoiceStatusDashboard({
+      settings: this.settings,
+      configManager: this.configManager,
+      saveSettings: () => this.saveSettings(),
+      variant: 'menu',
+    });
+
+    this._voiceStatusBarItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleVoiceStatusMenu();
+    });
+
+    this.updateVoiceStatusBar();
+  }
+
+  /**
+   * 切换语音状态菜单
+   */
+  private toggleVoiceStatusMenu(): void {
+    if (this._voiceStatusMenuEl) {
+      this.closeVoiceStatusMenu();
+      return;
+    }
+    this.openVoiceStatusMenu();
+  }
+
+  /**
+   * 打开语音状态菜单
+   */
+  private openVoiceStatusMenu(): void {
+    if (!this._voiceStatusBarItem || !this._voiceStatusDashboard) {
+      return;
+    }
+
+    this.closeVoiceStatusMenu();
+
+    const menuEl = document.createElement('div');
+    menuEl.addClass('smart-workflow-voice-status-menu');
+    const contentEl = menuEl.createDiv({ cls: 'voice-status-dashboard-container' });
+    document.body.appendChild(menuEl);
+
+    this._voiceStatusMenuEl = menuEl;
+    this._voiceStatusMenuContainer = contentEl;
+
+    this.refreshVoiceStatusMenu();
+    this.positionVoiceStatusMenu();
+
+    this._voiceStatusMenuLayoutHandler = () => {
+      this.scheduleVoiceStatusMenuLayout();
+    };
+    menuEl.addEventListener('click', this._voiceStatusMenuLayoutHandler, true);
+    menuEl.addEventListener('change', this._voiceStatusMenuLayoutHandler, true);
+
+    this._voiceStatusMenuCloseHandler = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (this._voiceStatusMenuEl?.contains(target)) return;
+      if (this._voiceStatusBarItem?.contains(target)) return;
+      this.closeVoiceStatusMenu();
+    };
+    document.addEventListener('mousedown', this._voiceStatusMenuCloseHandler, true);
+
+    this._voiceStatusMenuKeyHandler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        this.closeVoiceStatusMenu();
+      }
+    };
+    document.addEventListener('keydown', this._voiceStatusMenuKeyHandler, true);
+
+    this._voiceStatusMenuResizeHandler = () => {
+      this.closeVoiceStatusMenu();
+    };
+    window.addEventListener('resize', this._voiceStatusMenuResizeHandler, true);
+  }
+
+  /**
+   * 关闭语音状态菜单
+   */
+  private closeVoiceStatusMenu(): void {
+    if (this._voiceStatusMenuLayoutFrame !== null) {
+      window.cancelAnimationFrame(this._voiceStatusMenuLayoutFrame);
+      this._voiceStatusMenuLayoutFrame = null;
+    }
+    if (this._voiceStatusMenuLayoutHandler && this._voiceStatusMenuEl) {
+      this._voiceStatusMenuEl.removeEventListener('click', this._voiceStatusMenuLayoutHandler, true);
+      this._voiceStatusMenuEl.removeEventListener('change', this._voiceStatusMenuLayoutHandler, true);
+      this._voiceStatusMenuLayoutHandler = null;
+    }
+
+    if (this._voiceStatusMenuCloseHandler) {
+      document.removeEventListener('mousedown', this._voiceStatusMenuCloseHandler, true);
+      this._voiceStatusMenuCloseHandler = null;
+    }
+    if (this._voiceStatusMenuKeyHandler) {
+      document.removeEventListener('keydown', this._voiceStatusMenuKeyHandler, true);
+      this._voiceStatusMenuKeyHandler = null;
+    }
+    if (this._voiceStatusMenuResizeHandler) {
+      window.removeEventListener('resize', this._voiceStatusMenuResizeHandler, true);
+      this._voiceStatusMenuResizeHandler = null;
+    }
+
+    if (this._voiceStatusMenuEl) {
+      this._voiceStatusMenuEl.remove();
+    }
+    this._voiceStatusMenuEl = null;
+    this._voiceStatusMenuContainer = null;
+  }
+
+  /**
+   * 刷新语音状态菜单内容
+   */
+  private refreshVoiceStatusMenu(): void {
+    if (!this._voiceStatusDashboard || !this._voiceStatusMenuContainer) {
+      return;
+    }
+
+    this._voiceStatusDashboard.render(this._voiceStatusMenuContainer);
+    this.scheduleVoiceStatusMenuLayout();
+  }
+
+  private scheduleVoiceStatusMenuLayout(): void {
+    if (!this._voiceStatusMenuEl) {
+      return;
+    }
+    if (this._voiceStatusMenuLayoutFrame !== null) {
+      window.cancelAnimationFrame(this._voiceStatusMenuLayoutFrame);
+    }
+    this._voiceStatusMenuLayoutFrame = window.requestAnimationFrame(() => {
+      this._voiceStatusMenuLayoutFrame = null;
+      if (this._voiceStatusMenuEl) {
+        this.positionVoiceStatusMenu();
+      }
+    });
+  }
+
+  /**
+   * 定位语音状态菜单
+   */
+  private positionVoiceStatusMenu(): void {
+    if (!this._voiceStatusBarItem || !this._voiceStatusMenuEl) {
+      return;
+    }
+
+    const anchorRect = this._voiceStatusBarItem.getBoundingClientRect();
+    const menuRect = this._voiceStatusMenuEl.getBoundingClientRect();
+    const padding = 8;
+
+    let left = anchorRect.left;
+    if (left + menuRect.width > window.innerWidth - padding) {
+      left = window.innerWidth - menuRect.width - padding;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    let top = anchorRect.top - menuRect.height - padding;
+    if (top < padding) {
+      top = anchorRect.bottom + padding;
+    }
+
+    this._voiceStatusMenuEl.style.left = `${Math.round(left)}px`;
+    this._voiceStatusMenuEl.style.top = `${Math.round(top)}px`;
+  }
+
+  /**
+   * 更新语音状态栏显示状态
+   */
+  private updateVoiceStatusBar(): void {
+    if (!this._voiceStatusBarItem) {
+      return;
+    }
+
+    const shouldShow = this.settings.voice.enabled && this.settings.featureVisibility.voice.enabled;
+    this._voiceStatusBarItem.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) {
+      this.closeVoiceStatusMenu();
+    }
   }
 
   /**
