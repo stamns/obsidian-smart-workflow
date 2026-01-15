@@ -3260,6 +3260,120 @@
   margin-bottom: 20px;
   padding: 0;
 }
+.voice-status-dashboard.voice-status-dashboard-compact {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+/* 状态栏中的语音入口 */
+.smart-workflow-voice-status-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.smart-workflow-voice-status-bar .voice-status-bar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.smart-workflow-voice-status-bar .voice-status-bar-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.smart-workflow-voice-status-bar .voice-status-bar-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 语音状态菜单 */
+.smart-workflow-voice-status-menu {
+  position: fixed;
+  z-index: 10000;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  width: min(420px, calc(100vw - 16px));
+  max-width: min(420px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+}
+.smart-workflow-voice-status-menu .voice-status-dashboard {
+  margin-bottom: 0;
+}
+.smart-workflow-voice-status-menu .voice-status-card {
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  border-color: var(--background-modifier-border-hover);
+}
+.smart-workflow-voice-status-menu .voice-status-card:hover {
+  box-shadow: none;
+  transform: none;
+}
+.smart-workflow-voice-status-menu .voice-status-card-header {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+}
+.smart-workflow-voice-status-menu .voice-status-card-icon {
+  width: 24px;
+  height: 24px;
+}
+.smart-workflow-voice-status-menu .voice-status-card-icon svg {
+  width: 12px;
+  height: 12px;
+}
+.smart-workflow-voice-status-menu .voice-status-card-content {
+  gap: 8px;
+}
+.smart-workflow-voice-status-menu .voice-status-item {
+  padding: 6px 8px;
+}
+.smart-workflow-voice-status-menu .voice-status-item-icon {
+  width: 20px;
+  height: 20px;
+}
+.smart-workflow-voice-status-menu .voice-status-item-icon svg {
+  width: 12px;
+  height: 12px;
+}
+.smart-workflow-voice-status-menu .voice-status-card-title {
+  font-size: 12px;
+}
+.smart-workflow-voice-status-menu .voice-status-item-label,
+.smart-workflow-voice-status-menu .voice-status-item-value,
+.smart-workflow-voice-status-menu .voice-status-item-select {
+  font-size: 11px;
+}
+
+/* 状态卡片折叠 */
+.voice-status-card-body {
+  display: block;
+}
+.voice-status-card.collapsed .voice-status-card-body {
+  display: none;
+}
+.voice-status-card-collapse {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.voice-status-card-collapse svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 150ms ease;
+}
+.voice-status-card.collapsed .voice-status-card-collapse svg {
+  transform: rotate(-90deg);
+}
 /* 响应式：小屏幕时改为单列 */
 @media (max-width: 900px) {
   .voice-status-dashboard {
