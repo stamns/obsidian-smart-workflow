@@ -20,8 +20,6 @@ export interface HotkeyInputOptions {
   description: string;
   /** 插件 ID（默认：obsidian-smart-workflow） */
   pluginId?: string;
-  /** 刷新回调 */
-  onRefresh?: () => void;
   /** i18n 键前缀（用于获取 noHotkeySet、pressKey、resetHotkey 翻译） */
   i18nPrefix?: string;
 }
@@ -36,8 +34,12 @@ export class HotkeyInput {
   private name: string;
   private description: string;
   private pluginId: string;
-  private onRefresh?: () => void;
   private i18nPrefix: string;
+
+  // DOM 元素引用
+  private hotkeyBtn!: HTMLButtonElement;
+  private hotkeyContainer!: HTMLElement;
+  private resetBtn: HTMLButtonElement | null = null;
 
   constructor(options: HotkeyInputOptions) {
     this.app = options.app;
@@ -46,7 +48,6 @@ export class HotkeyInput {
     this.name = options.name;
     this.description = options.description;
     this.pluginId = options.pluginId || 'obsidian-smart-workflow';
-    this.onRefresh = options.onRefresh;
     this.i18nPrefix = options.i18nPrefix || 'common.hotkey';
 
     this.render();
@@ -56,51 +57,32 @@ export class HotkeyInput {
    * 渲染组件
    */
   private render(): void {
-    const currentHotkey = this.getCommandHotkey();
-
     const setting = new Setting(this.containerEl)
       .setName(this.name)
       .setDesc(this.description);
 
     // 快捷键按钮容器
-    const hotkeyContainer = setting.controlEl.createDiv({ cls: 'hotkey-input-container' });
-    hotkeyContainer.style.display = 'flex';
-    hotkeyContainer.style.alignItems = 'center';
-    hotkeyContainer.style.gap = '8px';
+    this.hotkeyContainer = setting.controlEl.createDiv({ cls: 'hotkey-input-container' });
+    this.hotkeyContainer.style.display = 'flex';
+    this.hotkeyContainer.style.alignItems = 'center';
+    this.hotkeyContainer.style.gap = '8px';
 
     // 快捷键显示/录入按钮
-    const hotkeyBtn = hotkeyContainer.createEl('button', { cls: 'setting-hotkey' });
-    hotkeyBtn.style.minWidth = '100px';
-    hotkeyBtn.style.padding = '4px 12px';
-    hotkeyBtn.style.borderRadius = '4px';
-    hotkeyBtn.style.border = '1px solid var(--background-modifier-border)';
-    hotkeyBtn.style.backgroundColor = 'var(--background-primary)';
-    hotkeyBtn.style.cursor = 'pointer';
-    hotkeyBtn.style.fontFamily = 'inherit';
-    hotkeyBtn.style.fontSize = '0.9em';
+    this.hotkeyBtn = this.hotkeyContainer.createEl('button', { cls: 'setting-hotkey' });
+    this.setupButtonStyles();
 
-    const updateButtonText = () => {
-      const hotkey = this.getCommandHotkey();
-      if (hotkey) {
-        hotkeyBtn.setText(hotkey);
-        hotkeyBtn.style.color = 'var(--text-normal)';
-      } else {
-        hotkeyBtn.setText(this.getI18n('noHotkeySet'));
-        hotkeyBtn.style.color = 'var(--text-faint)';
-      }
-    };
-
-    updateButtonText();
+    // 初始显示
+    this.updateDisplay();
 
     let isRecording = false;
 
-    hotkeyBtn.addEventListener('click', () => {
+    this.hotkeyBtn.addEventListener('click', () => {
       if (isRecording) return;
 
       isRecording = true;
-      hotkeyBtn.setText(this.getI18n('pressKey'));
-      hotkeyBtn.style.color = 'var(--text-accent)';
-      hotkeyBtn.style.borderColor = 'var(--interactive-accent)';
+      this.hotkeyBtn.setText(this.getI18n('pressKey'));
+      this.hotkeyBtn.style.color = 'var(--text-accent)';
+      this.hotkeyBtn.style.borderColor = 'var(--interactive-accent)';
 
       const handleKeyDown = async (e: KeyboardEvent) => {
         e.preventDefault();
@@ -114,7 +96,7 @@ export class HotkeyInput {
         // Escape 取消录入
         if (e.key === 'Escape') {
           cleanup();
-          updateButtonText();
+          this.updateDisplay();
           return;
         }
 
@@ -131,12 +113,11 @@ export class HotkeyInput {
 
         await this.setCommandHotkey(hotkey);
         cleanup();
-        this.onRefresh?.();
       };
 
       const cleanup = () => {
         isRecording = false;
-        hotkeyBtn.style.borderColor = 'var(--background-modifier-border)';
+        this.hotkeyBtn.style.borderColor = 'var(--background-modifier-border)';
         document.removeEventListener('keydown', handleKeyDown, true);
       };
 
@@ -145,29 +126,70 @@ export class HotkeyInput {
       // 点击其他地方取消
       setTimeout(() => {
         const handleClickOutside = (e: MouseEvent) => {
-          if (!hotkeyBtn.contains(e.target as Node)) {
+          if (!this.hotkeyBtn.contains(e.target as Node)) {
             cleanup();
-            updateButtonText();
+            this.updateDisplay();
             document.removeEventListener('click', handleClickOutside, true);
           }
         };
         document.addEventListener('click', handleClickOutside, true);
       }, 100);
     });
+  }
 
-    // 恢复默认按钮（清除快捷键）- 仅在有快捷键时显示
-    if (currentHotkey) {
-      const resetBtn = hotkeyContainer.createEl('button', {
-        cls: 'clickable-icon',
-        attr: { 'aria-label': this.getI18n('resetHotkey') }
-      });
-      setIcon(resetBtn, 'rotate-ccw');
-      resetBtn.style.color = 'var(--text-muted)';
-      resetBtn.addEventListener('click', async () => {
-        await this.clearCommandHotkey();
-        this.onRefresh?.();
-      });
+  /**
+   * 设置按钮样式
+   */
+  private setupButtonStyles(): void {
+    this.hotkeyBtn.style.minWidth = '100px';
+    this.hotkeyBtn.style.padding = '4px 12px';
+    this.hotkeyBtn.style.borderRadius = '4px';
+    this.hotkeyBtn.style.border = '1px solid var(--background-modifier-border)';
+    this.hotkeyBtn.style.backgroundColor = 'var(--background-primary)';
+    this.hotkeyBtn.style.cursor = 'pointer';
+    this.hotkeyBtn.style.fontFamily = 'inherit';
+    this.hotkeyBtn.style.fontSize = '0.9em';
+  }
+
+  /**
+   * 更新显示（按钮文本 + 重置按钮）
+   */
+  private updateDisplay(): void {
+    const hotkey = this.getCommandHotkey();
+    
+    // 更新按钮文本
+    if (hotkey) {
+      this.hotkeyBtn.setText(hotkey);
+      this.hotkeyBtn.style.color = 'var(--text-normal)';
+    } else {
+      this.hotkeyBtn.setText(this.getI18n('noHotkeySet'));
+      this.hotkeyBtn.style.color = 'var(--text-faint)';
     }
+    
+    // 更新重置按钮
+    if (hotkey && !this.resetBtn) {
+      // 有快捷键但没有重置按钮 → 创建
+      this.createResetButton();
+    } else if (!hotkey && this.resetBtn) {
+      // 无快捷键但有重置按钮 → 移除
+      this.resetBtn.remove();
+      this.resetBtn = null;
+    }
+  }
+
+  /**
+   * 创建重置按钮
+   */
+  private createResetButton(): void {
+    this.resetBtn = this.hotkeyContainer.createEl('button', {
+      cls: 'clickable-icon',
+      attr: { 'aria-label': this.getI18n('resetHotkey') }
+    });
+    setIcon(this.resetBtn, 'rotate-ccw');
+    this.resetBtn.style.color = 'var(--text-muted)';
+    this.resetBtn.addEventListener('click', async () => {
+      await this.clearCommandHotkey();
+    });
   }
 
   /**
@@ -274,6 +296,9 @@ export class HotkeyInput {
       hotkeyManager.setHotkeys(fullCommandId, [hotkey]);
       await hotkeyManager.save();
       hotkeyManager.bake();
+      
+      // 更新显示
+      this.updateDisplay();
     } catch (e) {
       console.error('[HotkeyInput] Error setting hotkey:', e);
     }
@@ -296,6 +321,9 @@ export class HotkeyInput {
       hotkeyManager.removeHotkeys(fullCommandId);
       await hotkeyManager.save();
       hotkeyManager.bake();
+      
+      // 更新显示
+      this.updateDisplay();
     } catch (e) {
       console.error('[HotkeyInput] Error clearing hotkey:', e);
     }
