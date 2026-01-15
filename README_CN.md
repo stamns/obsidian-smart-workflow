@@ -2,8 +2,6 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-> 🎯 **用户体验至上** — 追求直观流畅的操作体验，而非功能堆砌。
-
 **Smart Workflow** 是一款强大的 Obsidian 插件，集成 AI 智能功能、终端、语音输入，提升知识管理效率。
 
 [English](./README.md)
