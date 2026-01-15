@@ -14,7 +14,6 @@ import * as crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import * as http from 'http';
 import * as https from 'https';
-import { requestUrl, Notice } from 'obsidian';
 import { debugLog, debugWarn, errorLog } from '../../utils/logger';
 import { t } from '../../i18n';
 
@@ -45,17 +44,7 @@ interface BinaryInfo {
   checksumUrl: string;
 }
 
-/** GitHub Release Asset */
-interface GitHubAsset {
-  name: string;
-  browser_download_url: string;
-}
 
-/** GitHub Release */
-interface GitHubRelease {
-  tag_name: string;
-  assets: GitHubAsset[];
-}
 
 export class BinaryDownloader {
   /** GitHub 仓库 */
@@ -163,10 +152,6 @@ export class BinaryDownloader {
       
       // 获取二进制信息
       const binaryInfo = await this.getBinaryInfo();
-      
-      if (!binaryInfo) {
-        throw new Error(t('notices.binaryNotAvailable') || '当前平台没有可用的二进制文件');
-      }
 
       // 确保目录存在
       const binariesDir = path.join(this.pluginDir, 'binaries');
@@ -178,38 +163,69 @@ export class BinaryDownloader {
       
       // 下载二进制文件
       const binaryPath = this.getBinaryPath();
-      await this.downloadFile(binaryInfo.url, binaryPath, (percent, downloadedBytes, totalBytes) => {
-        // 下载阶段占 10% - 80%
-        notify({
-          stage: 'downloading',
-          percent: 10 + percent * 0.7,
-          downloadedBytes,
-          totalBytes,
+      
+      try {
+        await this.downloadFile(binaryInfo.url, binaryPath, (percent, downloadedBytes, totalBytes) => {
+          // 下载阶段占 10% - 80%
+          notify({
+            stage: 'downloading',
+            percent: 10 + percent * 0.7,
+            downloadedBytes,
+            totalBytes,
+          });
         });
-      });
+      } catch (downloadError) {
+        // 如果下载失败，提供详细的错误信息
+        const errorMsg = downloadError instanceof Error ? downloadError.message : String(downloadError);
+        debugWarn('[BinaryDownloader] 下载失败:', errorMsg);
+        
+        // 如果是 404 错误，可能是版本不存在，尝试最新版本
+        if (errorMsg.includes('404')) {
+          debugLog('[BinaryDownloader] 尝试下载最新版本...');
+          const latestBaseUrl = `https://github.com/${this.repo}/releases/latest/download`;
+          const latestUrl = this.applyDownloadAccelerator(`${latestBaseUrl}/${binaryInfo.filename}`);
+          const latestChecksumUrl = this.applyDownloadAccelerator(`${latestBaseUrl}/${binaryInfo.filename}.sha256`);
+          
+          await this.downloadFile(latestUrl, binaryPath, (percent, downloadedBytes, totalBytes) => {
+            notify({
+              stage: 'downloading',
+              percent: 10 + percent * 0.7,
+              downloadedBytes,
+              totalBytes,
+            });
+          });
+          
+          // 更新校验和 URL
+          binaryInfo.checksumUrl = latestChecksumUrl;
+        } else {
+          throw downloadError;
+        }
+      }
 
       notify({ stage: 'verifying', percent: 85 });
       
       // 下载并验证校验和
-      try {
-        const checksumContent = await this.fetchText(binaryInfo.checksumUrl);
-        const expectedHash = checksumContent.split(/\s+/)[0].toLowerCase();
-        
-        const actualHash = await this.calculateSHA256(binaryPath);
-        
-        if (actualHash !== expectedHash) {
-          // 删除损坏的文件
-          fs.unlinkSync(binaryPath);
-          throw new Error(
-            t('notices.checksumMismatch') || 
-            `校验和不匹配: 期望 ${expectedHash}, 实际 ${actualHash}`
-          );
+      if (binaryInfo.checksumUrl) {
+        try {
+          const checksumContent = await this.fetchText(binaryInfo.checksumUrl);
+          const expectedHash = checksumContent.split(/\s+/)[0].toLowerCase();
+          
+          const actualHash = await this.calculateSHA256(binaryPath);
+          
+          if (actualHash !== expectedHash) {
+            // 删除损坏的文件
+            fs.unlinkSync(binaryPath);
+            throw new Error(
+              t('notices.checksumMismatch') || 
+              `校验和不匹配: 期望 ${expectedHash}, 实际 ${actualHash}`
+            );
+          }
+          
+          debugLog('[BinaryDownloader] SHA256 校验通过');
+        } catch (checksumError) {
+          // 校验和下载失败时，仅警告但不阻止使用
+          debugWarn('[BinaryDownloader] 校验和验证失败:', checksumError);
         }
-        
-        debugLog('[BinaryDownloader] SHA256 校验通过');
-      } catch (checksumError) {
-        // 校验和下载失败时，仅警告但不阻止使用
-        debugWarn('[BinaryDownloader] 校验和验证失败:', checksumError);
       }
 
       // 设置可执行权限 (Unix)
@@ -237,79 +253,28 @@ export class BinaryDownloader {
 
   /**
    * 获取二进制文件信息
+   * 直接构造 GitHub Release 下载 URL，绕过 API 限流
    */
-  private async getBinaryInfo(): Promise<BinaryInfo | null> {
+  private async getBinaryInfo(): Promise<BinaryInfo> {
     const platform = process.platform;
     const arch = process.arch;
     const ext = platform === 'win32' ? '.exe' : '';
     const filename = `smart-workflow-server-${platform}-${arch}${ext}`;
 
-    // 尝试获取当前版本的 Release
-    const releaseUrl = `https://api.github.com/repos/${this.repo}/releases/tags/${this.version}`;
+    // 直接构造 GitHub Release 下载 URL
+    // 格式: https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}
+    const baseUrl = `https://github.com/${this.repo}/releases/download/${this.version}`;
     
-    try {
-      const response = await requestUrl({
-        url: releaseUrl,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'obsidian-smart-workflow',
-        },
-      });
-
-      const release: GitHubRelease = response.json;
-      
-      // 查找对应平台的二进制文件
-      const binaryAsset = release.assets.find(a => a.name === filename);
-      const checksumAsset = release.assets.find(a => a.name === `${filename}.sha256`);
-      
-      if (binaryAsset) {
-        const downloadUrl = this.applyDownloadAccelerator(binaryAsset.browser_download_url);
-        const checksumUrl = checksumAsset?.browser_download_url
-          ? this.applyDownloadAccelerator(checksumAsset.browser_download_url)
-          : '';
-        return {
-          filename,
-          url: downloadUrl,
-          checksumUrl,
-        };
-      }
-    } catch (error) {
-      debugWarn('[BinaryDownloader] 获取指定版本 Release 失败，尝试最新版本');
-    }
-
-    // 回退到最新 Release
-    const latestUrl = `https://api.github.com/repos/${this.repo}/releases/latest`;
+    const downloadUrl = this.applyDownloadAccelerator(`${baseUrl}/${filename}`);
+    const checksumUrl = this.applyDownloadAccelerator(`${baseUrl}/${filename}.sha256`);
     
-    try {
-      const response = await requestUrl({
-        url: latestUrl,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'obsidian-smart-workflow',
-        },
-      });
-
-      const release: GitHubRelease = response.json;
-      
-      const binaryAsset = release.assets.find(a => a.name === filename);
-      const checksumAsset = release.assets.find(a => a.name === `${filename}.sha256`);
-      
-      if (binaryAsset) {
-        const downloadUrl = this.applyDownloadAccelerator(binaryAsset.browser_download_url);
-        const checksumUrl = checksumAsset?.browser_download_url
-          ? this.applyDownloadAccelerator(checksumAsset.browser_download_url)
-          : '';
-        return {
-          filename,
-          url: downloadUrl,
-          checksumUrl,
-        };
-      }
-    } catch (error) {
-      errorLog('[BinaryDownloader] 获取最新 Release 失败:', error);
-    }
-
-    return null;
+    debugLog('[BinaryDownloader] 使用直接下载 URL:', downloadUrl);
+    
+    return {
+      filename,
+      url: downloadUrl,
+      checksumUrl,
+    };
   }
 
   /**
@@ -425,14 +390,50 @@ export class BinaryDownloader {
    * 获取文本内容
    */
   private async fetchText(url: string): Promise<string> {
-    const response = await requestUrl({
-      url,
-      headers: {
-        'User-Agent': 'obsidian-smart-workflow',
-      },
-    });
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(url);
+      const client = urlObj.protocol === 'https:' ? https : http;
 
-    return response.text;
+      const request = client.get(
+        urlObj,
+        {
+          headers: {
+            'User-Agent': 'obsidian-smart-workflow',
+          },
+        },
+        (response) => {
+          const statusCode = response.statusCode ?? 0;
+          const redirectLocation = response.headers.location;
+
+          // 处理重定向
+          if (statusCode >= 300 && statusCode < 400 && redirectLocation) {
+            response.resume();
+            const nextUrl = new URL(redirectLocation, urlObj).toString();
+            resolve(this.fetchText(nextUrl));
+            return;
+          }
+
+          if (statusCode !== 200) {
+            response.resume();
+            reject(new Error(`获取文本失败: HTTP ${statusCode}`));
+            return;
+          }
+
+          let data = '';
+          response.on('data', (chunk) => {
+            data += chunk.toString();
+          });
+
+          response.on('end', () => {
+            resolve(data);
+          });
+
+          response.on('error', reject);
+        }
+      );
+
+      request.on('error', reject);
+    });
   }
 
   /**
