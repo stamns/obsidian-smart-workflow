@@ -27,13 +27,14 @@ macro_rules! log_error {
     }};
 }
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::Stream;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use thiserror::Error;
 
-use super::{AudioData, utils};
+use super::{AudioData, select_input_device, utils};
+use crate::voice::config::AudioCompressionLevel;
 
 /// API 要求的目标采样率 (16kHz)
 pub const TARGET_SAMPLE_RATE: u32 = 16000;
@@ -90,6 +91,7 @@ pub struct AudioRecorder {
     level_callback: Arc<Mutex<Option<AudioLevelCallback>>>,
     smoothed_level: Arc<Mutex<f32>>,
     last_emit_time: Arc<Mutex<Instant>>,
+    compression_level: AudioCompressionLevel,
 }
 
 impl AudioRecorder {
@@ -104,6 +106,7 @@ impl AudioRecorder {
             level_callback: Arc::new(Mutex::new(None)),
             smoothed_level: Arc::new(Mutex::new(0.0)),
             last_emit_time: Arc::new(Mutex::new(Instant::now())),
+            compression_level: AudioCompressionLevel::Minimum,
         })
     }
 
@@ -115,7 +118,12 @@ impl AudioRecorder {
         *cb = Some(Box::new(callback));
     }
 
-    pub fn start(&mut self, mode: RecordingMode) -> Result<(), RecordingError> {
+    pub fn start(
+        &mut self,
+        mode: RecordingMode,
+        device_name: Option<&str>,
+        compression_level: AudioCompressionLevel,
+    ) -> Result<(), RecordingError> {
         {
             let is_recording = self.is_recording.lock().unwrap();
             if *is_recording {
@@ -130,11 +138,9 @@ impl AudioRecorder {
         *self.recording_mode.lock().unwrap() = Some(mode);
         *self.smoothed_level.lock().unwrap() = 0.0;
         *self.last_emit_time.lock().unwrap() = Instant::now();
+        self.compression_level = compression_level;
 
-        let host = cpal::default_host();
-        let device = host
-            .default_input_device()
-            .ok_or_else(|| RecordingError::MicrophoneUnavailable("没有找到默认音频输入设备".to_string()))?;
+        let device = select_input_device(device_name)?;
 
         let supported_config = device
             .default_input_config()
@@ -145,12 +151,16 @@ impl AudioRecorder {
         let config = supported_config.config();
         self.device_sample_rate = config.sample_rate.0;
         self.channels = config.channels;
+        let target_sample_rate = utils::resolve_compression_sample_rate(
+            self.device_sample_rate,
+            self.compression_level,
+        );
 
         log_info!(
             "设备配置: 采样率={}Hz, 声道={}, 目标采样率={}Hz",
             self.device_sample_rate,
             self.channels,
-            TARGET_SAMPLE_RATE
+            target_sample_rate
         );
 
         let audio_data = Arc::clone(&self.audio_data);
@@ -310,11 +320,19 @@ impl AudioRecorder {
         let mono_audio = to_mono(&raw_audio, self.channels);
         log_debug!("转单声道: {} -> {} 样本", original_len, mono_audio.len());
 
-        let mut resampled_audio = resample(&mono_audio, self.device_sample_rate, TARGET_SAMPLE_RATE);
+        let target_sample_rate = utils::resolve_compression_sample_rate(
+            self.device_sample_rate,
+            self.compression_level,
+        );
+        let mut resampled_audio = if target_sample_rate == self.device_sample_rate {
+            mono_audio.clone()
+        } else {
+            resample(&mono_audio, self.device_sample_rate, target_sample_rate)
+        };
         log_debug!(
             "降采样: {}Hz -> {}Hz, {} -> {} 样本",
             self.device_sample_rate,
-            TARGET_SAMPLE_RATE,
+            target_sample_rate,
             mono_audio.len(),
             resampled_audio.len()
         );
@@ -324,7 +342,7 @@ impl AudioRecorder {
             utils::apply_agc(chunk, &mut current_gain);
         }
 
-        let audio_data = AudioData::new(resampled_audio, TARGET_SAMPLE_RATE, 1);
+        let audio_data = AudioData::new(resampled_audio, target_sample_rate, 1);
         log_info!("录音完成，时长: {}ms", audio_data.duration_ms);
 
         Ok(audio_data)

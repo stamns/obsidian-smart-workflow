@@ -1098,6 +1098,17 @@ export interface TranslationKeys {
       asrConfigDesc: string;
       defaultRecordingMode: string;
       defaultRecordingModeDesc: string;
+      recordingDevice: string;
+      recordingDeviceDesc: string;
+      recordingDeviceLoading: string;
+      recordingDeviceDefault: string;
+      recordingDeviceDefaultTag: string;
+      recordingDeviceNone: string;
+      audioCompression: string;
+      audioCompressionDesc: string;
+      audioCompressionOriginal: string;
+      audioCompressionMedium: string;
+      audioCompressionMinimum: string;
       primaryASR: string;
       primaryASRDesc: string;
       backupASR: string;
@@ -1120,6 +1131,16 @@ export interface TranslationKeys {
       // API Key 输入
       apiKeyGuide: string;
       currentModel: string;
+      qwenApiProvider: string;
+      qwenApiProviderDesc: string;
+      qwenApiProviderModelService: string;
+      qwenApiProviderBailian: string;
+      qwenProviderSelect: string;
+      qwenProviderSelectDesc: string;
+      qwenProviderNotSelected: string;
+      qwenProviderEmpty: string;
+      qwenProviderNotFound: string;
+      qwenProviderMissingKey: string;
       dashscopeApiKey: string;
       dashscopeApiKeyDesc: string;
       doubaoAppId: string;
@@ -1182,6 +1203,10 @@ export interface TranslationKeys {
       enableAudioFeedbackDesc: string;
       overlayPosition: string;
       overlayPositionDesc: string;
+      overlayPositionCursor: string;
+      overlayPositionCenter: string;
+      overlayPositionTopRight: string;
+      overlayPositionBottom: string;
       
       // 历史记录
       historyTitle: string;
@@ -1233,6 +1258,8 @@ export interface TranslationKeys {
       primaryModel: string;
       backupModel: string;
       asrMode: string;
+      recordingDevice: string;
+      audioCompression: string;
       removePunctuation: string;
       notConfigured: string;
       llmTitle: string;

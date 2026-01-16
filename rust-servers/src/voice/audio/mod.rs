@@ -6,10 +6,69 @@ pub mod recorder;
 pub mod streaming;
 pub mod utils;
 
+use cpal::traits::{DeviceTrait, HostTrait};
+
 // 重新导出常用类型
 pub use encoder::{encode_to_wav, encode_samples_to_wav, encode_i16_to_wav, WavEncoder, EncodingError};
 pub use recorder::{AudioRecorder, RecordingError, RecordingMode, TARGET_SAMPLE_RATE};
 pub use streaming::{StreamingRecorder, AudioChunkData, CHUNK_SAMPLES};
+
+/// 输入设备信息
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct InputDeviceInfo {
+    pub name: String,
+    pub is_default: bool,
+}
+
+/// 获取输入设备列表
+pub fn list_input_devices() -> Result<Vec<InputDeviceInfo>, RecordingError> {
+    let host = cpal::default_host();
+    let default_name = host
+        .default_input_device()
+        .and_then(|device| device.name().ok());
+    let devices = host
+        .input_devices()
+        .map_err(|e| RecordingError::DeviceError(format!("无法获取输入设备列表: {}", e)))?;
+
+    let mut list = Vec::new();
+    for device in devices {
+        if let Ok(name) = device.name() {
+            let is_default = default_name
+                .as_ref()
+                .map(|default| default == &name)
+                .unwrap_or(false);
+            list.push(InputDeviceInfo { name, is_default });
+        }
+    }
+
+    Ok(list)
+}
+
+/// 选择输入设备（优先使用指定名称，空则使用默认设备）
+pub fn select_input_device(device_name: Option<&str>) -> Result<cpal::Device, RecordingError> {
+    let host = cpal::default_host();
+
+    if let Some(name) = device_name {
+        let devices = host
+            .input_devices()
+            .map_err(|e| RecordingError::DeviceError(format!("无法获取输入设备列表: {}", e)))?;
+        for device in devices {
+            if let Ok(device_name) = device.name() {
+                if device_name == name {
+                    return Ok(device);
+                }
+            }
+        }
+        return Err(RecordingError::MicrophoneUnavailable(format!(
+            "未找到指定录音设备: {}",
+            name
+        )));
+    }
+
+    host.default_input_device().ok_or_else(|| {
+        RecordingError::MicrophoneUnavailable("没有找到默认音频输入设备".to_string())
+    })
+}
 
 /// 音频数据
 #[derive(Debug, Clone)]

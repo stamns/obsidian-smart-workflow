@@ -6,7 +6,7 @@
  * 职责:
  * 1. 使用 VoiceClient 与统一服务器通信
  * 2. 协调录音、ASR 转录、LLM 后处理和文本插入
- * 3. 提供听写模式和助手模式的完整流程
+ * 3. 提供转录模式和助手模式的完整流程
  * 4. 发射事件供 UI 组件订阅
  * 
  */
@@ -23,6 +23,7 @@ import type {
   VoiceInputMode,
   RecordingMode,
   ASRConfig,
+  InputDeviceInfo,
   VoiceServiceEvents,
   TranscriptionCompleteMessage} from './types';
 import {
@@ -30,10 +31,10 @@ import {
   VoiceErrorCode,
   LLMProcessingError,
 } from './types';
-import type { VoiceSettings } from '../../settings/settings';
+import type { VoiceASRProviderConfig, VoiceSettings } from '../../settings/settings';
 
 /**
- * 听写结果
+ * 转录结果
  */
 export interface DictationResult {
   /** 原始 ASR 转录文本 */
@@ -272,7 +273,7 @@ export class VoiceInputService implements IVoiceInputService {
   // ============================================================================
 
   /**
-   * 开始听写模式
+   * 开始转录模式
    */
   async startDictation(): Promise<void> {
     if (this._isRecording) {
@@ -290,11 +291,11 @@ export class VoiceInputService implements IVoiceInputService {
     
     // 使用 VoiceClient 发送开始录音消息
     this.voiceClient!.startRecording(this._recordingMode, this.buildASRConfig());
-    debugLog('[VoiceInputService] 开始听写模式');
+    debugLog('[VoiceInputService] 开始转录模式');
   }
 
   /**
-   * 停止听写模式
+   * 停止转录模式
    * @returns 转录后的文本
    */
   async stopDictation(): Promise<string> {
@@ -314,17 +315,17 @@ export class VoiceInputService implements IVoiceInputService {
     this._isRecording = false;
     this._currentMode = null;
     
-    debugLog('[VoiceInputService] 听写模式结束，转录结果:', result);
+    debugLog('[VoiceInputService] 转录模式结束，转录结果:', result);
     
     return result;
   }
 
 
   /**
-   * 执行完整的听写流程
+   * 执行完整的转录流程
    * 包括：录音 → ASR 转录 → LLM 后处理（可选）→ 文本插入
-   * 
-   * @returns 听写结果
+   *
+   * @returns 转录结果
    */
   async executeDictationFlow(): Promise<DictationResult> {
     // 记录 ASR 开始时间
@@ -407,9 +408,9 @@ export class VoiceInputService implements IVoiceInputService {
 
 
   /**
-   * 执行完整的听写流程并插入文本
+   * 执行完整的转录流程并插入文本
    * 这是最常用的方法，一步完成所有操作
-   * 
+   *
    * @returns 是否成功插入文本
    */
   async executeDictationAndInsert(): Promise<boolean> {
@@ -421,7 +422,7 @@ export class VoiceInputService implements IVoiceInputService {
       );
     }
     
-    // 执行听写流程
+    // 执行转录流程
     const result = await this.executeDictationFlow();
     
     // 插入文本
@@ -484,7 +485,7 @@ export class VoiceInputService implements IVoiceInputService {
   }
 
   /**
-   * 获取最后一次听写结果
+   * 获取最后一次转录结果
    */
   getLastDictationResult(): DictationResult | null {
     return this.lastDictationResult;
@@ -889,19 +890,39 @@ export class VoiceInputService implements IVoiceInputService {
    * 构建 ASR 配置
    * 使用 ConfigManager 统一接口解析密钥值
    */
+  private resolveQwenApiKey(config: VoiceASRProviderConfig): string | undefined {
+    const apiProvider = config.qwenApiProvider ?? 'bailian';
+    if (apiProvider === 'modelService') {
+      if (!config.qwenProviderId) {
+        return undefined;
+      }
+      return this.configManager.getApiKey(config.qwenProviderId);
+    }
+    return this.configManager.resolveKeyValue(config.dashscopeKeyConfig);
+  }
+
+  private resolveDashscopeApiKey(config: VoiceASRProviderConfig): string | undefined {
+    if (config.provider !== 'qwen') {
+      return this.configManager.resolveKeyValue(config.dashscopeKeyConfig);
+    }
+    return this.resolveQwenApiKey(config);
+  }
+
   private buildASRConfig(): ASRConfig {
     const config: ASRConfig = {
       primary: {
         provider: this.settings.primaryASR.provider,
         mode: this.settings.primaryASR.mode,
         // 使用 ConfigManager 解析密钥值
-        dashscope_api_key: this.configManager.resolveKeyValue(this.settings.primaryASR.dashscopeKeyConfig),
+        dashscope_api_key: this.resolveDashscopeApiKey(this.settings.primaryASR),
         app_id: this.settings.primaryASR.app_id,
         access_token: this.configManager.resolveKeyValue(this.settings.primaryASR.doubaoKeyConfig),
         siliconflow_api_key: this.configManager.resolveKeyValue(this.settings.primaryASR.siliconflowKeyConfig),
       },
       enable_fallback: this.settings.enableFallback,
       enable_audio_feedback: this.settings.enableAudioFeedback,
+      recording_device: this.settings.recordingDeviceName,
+      audio_compression: this.settings.audioCompressionLevel,
     };
 
     if (this.settings.backupASR && this.settings.enableFallback) {
@@ -909,7 +930,7 @@ export class VoiceInputService implements IVoiceInputService {
         provider: this.settings.backupASR.provider,
         mode: this.settings.backupASR.mode,
         // 使用 ConfigManager 解析密钥值
-        dashscope_api_key: this.configManager.resolveKeyValue(this.settings.backupASR.dashscopeKeyConfig),
+        dashscope_api_key: this.resolveDashscopeApiKey(this.settings.backupASR),
         app_id: this.settings.backupASR.app_id,
         access_token: this.configManager.resolveKeyValue(this.settings.backupASR.doubaoKeyConfig),
         siliconflow_api_key: this.configManager.resolveKeyValue(this.settings.backupASR.siliconflowKeyConfig),
@@ -917,6 +938,22 @@ export class VoiceInputService implements IVoiceInputService {
     }
 
     return config;
+  }
+
+  /**
+   * 获取录音输入设备列表
+   */
+  async listInputDevices(): Promise<InputDeviceInfo[]> {
+    await this.ensureInitialized();
+    if (!this.voiceClient) {
+      return [];
+    }
+    try {
+      return await this.voiceClient.requestInputDevices();
+    } catch (error) {
+      errorLog('[VoiceInputService] 获取录音设备失败:', error);
+      return [];
+    }
   }
 
   /**

@@ -19,7 +19,7 @@ macro_rules! log_error {
     }};
 }
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::Stream;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -29,7 +29,8 @@ use super::recorder::{
     convert_i16_to_f32, convert_u16_to_f32, resample, to_mono, RecordingError, RecordingMode,
     TARGET_SAMPLE_RATE,
 };
-use super::utils;
+use super::{select_input_device, utils};
+use crate::voice::config::AudioCompressionLevel;
 use super::AudioData;
 
 /// 每个音频块的样本数 (0.2秒 @ 16kHz = 3200 样本)
@@ -69,6 +70,7 @@ pub struct StreamingRecorder {
     vad_hangover: Arc<Mutex<usize>>,
     agc_gain: Arc<Mutex<f32>>,
     last_emit_time: Arc<Mutex<Instant>>,
+    compression_level: AudioCompressionLevel,
 }
 
 impl StreamingRecorder {
@@ -87,6 +89,7 @@ impl StreamingRecorder {
             vad_hangover: Arc::new(Mutex::new(0)),
             agc_gain: Arc::new(Mutex::new(1.0)),
             last_emit_time: Arc::new(Mutex::new(Instant::now())),
+            compression_level: AudioCompressionLevel::Minimum,
         })
     }
 
@@ -101,6 +104,8 @@ impl StreamingRecorder {
     pub fn start_streaming(
         &mut self,
         mode: RecordingMode,
+        device_name: Option<&str>,
+        compression_level: AudioCompressionLevel,
     ) -> Result<mpsc::Receiver<AudioChunkData>, RecordingError> {
         {
             let is_recording = self.is_recording.lock().unwrap();
@@ -119,14 +124,12 @@ impl StreamingRecorder {
         *self.vad_hangover.lock().unwrap() = 0;
         *self.agc_gain.lock().unwrap() = 1.0;
         *self.last_emit_time.lock().unwrap() = Instant::now();
+        self.compression_level = compression_level;
 
         let (chunk_tx, chunk_rx) = mpsc::channel::<AudioChunkData>(CHUNK_CHANNEL_BUFFER);
         self.chunk_sender = Some(chunk_tx.clone());
 
-        let host = cpal::default_host();
-        let device = host.default_input_device().ok_or_else(|| {
-            RecordingError::MicrophoneUnavailable("没有找到默认音频输入设备".to_string())
-        })?;
+        let device = select_input_device(device_name)?;
 
         let supported_config = device
             .default_input_config()
@@ -136,11 +139,16 @@ impl StreamingRecorder {
         self.device_sample_rate = config.sample_rate.0;
         self.channels = config.channels;
 
+        let target_sample_rate = utils::resolve_compression_sample_rate(
+            self.device_sample_rate,
+            self.compression_level,
+        );
+
         log_info!(
-            "流式录音配置: 采样率={}Hz, 声道={}, 目标采样率={}Hz, 块大小={}样本",
+            "流式录音配置: 采样率={}Hz, 声道={}, 压缩采样率={}Hz, 块大小={}样本",
             self.device_sample_rate,
             self.channels,
-            TARGET_SAMPLE_RATE,
+            target_sample_rate,
             CHUNK_SAMPLES
         );
 
@@ -403,9 +411,17 @@ impl StreamingRecorder {
         }
 
         let mono_audio = to_mono(&raw_audio, self.channels);
-        let resampled_audio = resample(&mono_audio, self.device_sample_rate, TARGET_SAMPLE_RATE);
+        let target_sample_rate = utils::resolve_compression_sample_rate(
+            self.device_sample_rate,
+            self.compression_level,
+        );
+        let resampled_audio = if target_sample_rate == self.device_sample_rate {
+            mono_audio
+        } else {
+            resample(&mono_audio, self.device_sample_rate, target_sample_rate)
+        };
 
-        let audio_data = AudioData::new(resampled_audio, TARGET_SAMPLE_RATE, 1);
+        let audio_data = AudioData::new(resampled_audio, target_sample_rate, 1);
         log_info!(
             "流式录音停止，完整音频时长: {}ms",
             audio_data.duration_ms

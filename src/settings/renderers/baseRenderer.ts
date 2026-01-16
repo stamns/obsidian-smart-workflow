@@ -29,8 +29,8 @@ export abstract class BaseSettingsRenderer implements ISettingsRenderer {
    * 创建设置卡片容器
    * @returns 卡片容器元素
    */
-  protected createCard(): HTMLElement {
-    return createSettingCard(this.context.containerEl);
+  protected createCard(containerEl?: HTMLElement): HTMLElement {
+    return createSettingCard(containerEl ?? this.context.containerEl);
   }
 
   /**

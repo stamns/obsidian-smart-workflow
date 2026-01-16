@@ -25,8 +25,16 @@ export type ASRMode = 'realtime' | 'http';
 export type RecordingMode = 'press' | 'toggle';
 
 /**
+ * 音频压缩等级
+ * - original: 原始
+ * - medium: 中等压缩
+ * - minimum: 最小压缩
+ */
+export type AudioCompressionLevel = 'original' | 'medium' | 'minimum';
+
+/**
  * 语音输入模式
- * - dictation: 听写模式，语音转文字后插入
+ * - dictation: 转录模式，语音转文字后插入
  * - assistant: AI 助手模式，语音命令处理文本
  */
 export type VoiceInputMode = 'dictation' | 'assistant';
@@ -73,6 +81,10 @@ export interface ASRConfig {
   enable_fallback: boolean;
   /** 是否启用音频反馈（提示音） */
   enable_audio_feedback?: boolean;
+  /** 录音设备名称（空则使用系统默认设备） */
+  recording_device?: string;
+  /** 音频压缩等级 */
+  audio_compression?: AudioCompressionLevel;
 }
 
 // ============================================================================
@@ -132,6 +144,15 @@ export interface RecordingStateMessage {
 }
 
 /**
+ * 输入设备列表消息
+ */
+export interface InputDevicesMessage {
+  type: 'input_devices';
+  request_id?: string;
+  devices: InputDeviceInfo[];
+}
+
+/**
  * 音频级别消息 (用于波形显示)
  */
 export interface AudioLevelMessage {
@@ -175,10 +196,19 @@ export interface VoiceErrorMessage {
  */
 export type ServerMessage = 
   | RecordingStateMessage 
+  | InputDevicesMessage
   | AudioLevelMessage 
   | TranscriptionProgressMessage 
   | TranscriptionCompleteMessage 
   | VoiceErrorMessage;
+
+/**
+ * 输入设备信息
+ */
+export interface InputDeviceInfo {
+  name: string;
+  is_default: boolean;
+}
 
 // ============================================================================
 // 悬浮窗状态类型
@@ -300,9 +330,9 @@ export interface IVoiceInputService {
   /** 销毁服务 */
   destroy(): Promise<void>;
   
-  /** 开始听写模式 */
+  /** 开始转录模式 */
   startDictation(): Promise<void>;
-  /** 停止听写模式 */
+  /** 停止转录模式 */
   stopDictation(): Promise<string>;
   /** 开始助手模式 */
   startAssistant(selectedText?: string): Promise<void>;

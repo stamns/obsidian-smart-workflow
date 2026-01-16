@@ -414,8 +414,8 @@ export class VoiceOverlay implements IVoiceOverlay {
     
     // 更新状态文本
     if (this.statusEl) {
-      this.statusEl.textContent = t('voiceInput.recording') || '录音中...';
-      this.statusEl.style.display = 'block';
+      this.statusEl.textContent = '';
+      this.statusEl.style.display = 'none';
     }
     
     // 清除之前的部分转录文本
@@ -423,7 +423,7 @@ export class VoiceOverlay implements IVoiceOverlay {
     
     // Toggle 模式显示按钮
     if (this.buttonsEl) {
-      this.buttonsEl.style.display = mode === 'toggle' ? 'flex' : 'none';
+      this.buttonsEl.style.display = mode === 'toggle' ? '' : 'none';
     }
   }
 
@@ -493,15 +493,15 @@ export class VoiceOverlay implements IVoiceOverlay {
       this.waveformEl.style.display = 'none';
     }
     
-    // 更新状态文本
+    // 隐藏错误文本，避免高度变化
     if (this.statusEl) {
-      this.statusEl.innerHTML = `
-        <div class="voice-overlay-error">
-          ${this.getErrorIcon()}
-          <span>${message}</span>
-        </div>
-      `;
-      this.statusEl.style.display = 'block';
+      this.statusEl.textContent = '';
+      this.statusEl.style.display = 'none';
+    }
+
+    if (this.partialTextEl) {
+      this.partialTextEl.textContent = '';
+      this.partialTextEl.style.display = 'none';
     }
     
     // 隐藏按钮

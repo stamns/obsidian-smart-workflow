@@ -11,7 +11,6 @@ use crate::router::{ModuleHandler, ModuleMessage, ModuleType, RouterError, Serve
 use crate::server::WsSender;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use tokio::sync::Mutex as TokioMutex;
 use tokio_tungstenite::tungstenite::Message;
 use futures_util::SinkExt;
@@ -43,38 +42,27 @@ macro_rules! log_debug {
 // ============================================================================
 
 /// 单个 PTY 会话的上下文
-/// 
+///
 /// 包含一个 PTY 会话所需的所有资源
 struct PtySessionContext {
     /// PTY 会话
     session: Arc<TokioMutex<PtySession>>,
-    /// PTY 读取器
-    reader: Arc<Mutex<PtyReader>>,
     /// PTY 写入器
     writer: Arc<Mutex<PtyWriter>>,
     /// 读取任务句柄
     read_task: Option<tokio::task::JoinHandle<()>>,
-    /// Shell 类型 (用于 Shell Integration)
-    shell_type: Option<String>,
-    /// 创建时间
-    created_at: Instant,
 }
 
 impl PtySessionContext {
     /// 创建新的会话上下文
     fn new(
         session: Arc<TokioMutex<PtySession>>,
-        reader: Arc<Mutex<PtyReader>>,
         writer: Arc<Mutex<PtyWriter>>,
-        shell_type: Option<String>,
     ) -> Self {
         Self {
             session,
-            reader,
             writer,
             read_task: None,
-            shell_type,
-            created_at: Instant::now(),
         }
     }
 }
@@ -135,12 +123,10 @@ impl PtyHandler {
         let pty_session = Arc::new(TokioMutex::new(pty_session));
         let pty_reader = Arc::new(Mutex::new(pty_reader));
         let pty_writer = Arc::new(Mutex::new(pty_writer));
-        
+
         let mut context = PtySessionContext::new(
             Arc::clone(&pty_session),
-            Arc::clone(&pty_reader),
             Arc::clone(&pty_writer),
-            shell_type.clone(),
         );
         
         // 启动 PTY 输出读取任务

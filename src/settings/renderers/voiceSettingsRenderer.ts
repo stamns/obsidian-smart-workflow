@@ -7,7 +7,7 @@ import type { App } from 'obsidian';
 import { Setting, Notice, setIcon, TextAreaComponent } from 'obsidian';
 import type { RendererContext } from '../types';
 import { BaseSettingsRenderer } from './baseRenderer';
-import { createHotkeyInput } from '../components';
+import { createHotkeyInput, createSettingCardBordered } from '../components';
 import { t } from '../../i18n';
 import type { 
   VoiceASRProvider, 
@@ -17,6 +17,8 @@ import type {
   VoiceLLMPreset,
   VoiceASRProviderConfig,
   VoiceSettings,
+  VoiceAudioCompressionLevel,
+  VoiceQwenApiProvider,
   SecretStorageMode,
   KeyConfig,
 } from '../settings';
@@ -105,14 +107,23 @@ const RECORDING_MODE_NAMES: Record<VoiceRecordingMode, string> = {
 };
 
 /**
+ * 音频压缩等级显示名称
+ */
+const getAudioCompressionNames = (): Record<VoiceAudioCompressionLevel, string> => ({
+  original: t('voice.settings.audioCompressionOriginal'),
+  medium: t('voice.settings.audioCompressionMedium'),
+  minimum: t('voice.settings.audioCompressionMinimum'),
+});
+
+/**
  * 悬浮窗位置显示名称
  */
-const OVERLAY_POSITION_NAMES: Record<VoiceOverlayPosition, string> = {
-  cursor: '跟随光标',
-  center: '屏幕中央',
-  'top-right': '右上角',
-  bottom: '底部',
-};
+const getOverlayPositionNames = (): Record<VoiceOverlayPosition, string> => ({
+  cursor: t('voice.settings.overlayPositionCursor'),
+  center: t('voice.settings.overlayPositionCenter'),
+  'top-right': t('voice.settings.overlayPositionTopRight'),
+  bottom: t('voice.settings.overlayPositionBottom'),
+});
 
 /**
  * 语音输入设置渲染器
@@ -698,7 +709,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染快捷键设置
    */
   private renderHotkeySettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
 
     // 标题
     new Setting(card)
@@ -707,7 +718,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
       .setHeading();
 
     // 使用封装的快捷键组件
-    // 听写模式命令
+    // 转录模式命令
     createHotkeyInput({
       app: this.context.app,
       containerEl: card,
@@ -747,7 +758,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染功能开关设置
    */
   private renderEnableSettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
     const isEnabled = this.context.plugin.settings.voice.enabled;
 
     // 标题行 - 包含标题和 iOS 风格开关
@@ -820,7 +831,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染 ASR 配置设置
    */
   private renderASRSettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
 
     // 标题
     new Setting(card)
@@ -844,11 +855,21 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
           });
       });
 
+    // 录音设备选择
+    this.renderRecordingDeviceSetting(card);
+
+    // 音频压缩
+    this.renderAudioCompressionSetting(card);
+
     // 主 ASR 引擎配置
-    this.renderASRProviderConfig(card, 'primary', t('voice.settings.primaryASR'));
+    const primarySection = createSettingCardBordered(card);
+    primarySection.addClass('voice-asr-engine-section');
+    this.renderASRProviderConfig(primarySection, 'primary', t('voice.settings.primaryASR'));
 
     // 备用 ASR 引擎配置
-    this.renderASRProviderConfig(card, 'backup', t('voice.settings.backupASR'));
+    const backupSection = createSettingCardBordered(card);
+    backupSection.addClass('voice-asr-engine-section');
+    this.renderASRProviderConfig(backupSection, 'backup', t('voice.settings.backupASR'));
 
     // 启用自动兜底
     new Setting(card)
@@ -871,6 +892,82 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
           this.context.plugin.settings.voice.removeTrailingPunctuation = value;
           await this.saveSettings();
         }));
+  }
+
+  /**
+   * 渲染录音设备设置
+   */
+  private renderRecordingDeviceSetting(containerEl: HTMLElement): void {
+    const voiceSettings = this.context.plugin.settings.voice;
+    const deviceSetting = new Setting(containerEl)
+      .setName(t('voice.settings.recordingDevice'))
+      .setDesc(t('voice.settings.recordingDeviceDesc'));
+
+    deviceSetting.addDropdown(dropdown => {
+      const updateDropdown = (devices: Array<{ name: string; is_default: boolean }>) => {
+        dropdown.selectEl.empty();
+        const hasDevices = devices.length > 0;
+
+        if (!hasDevices) {
+          dropdown.addOption('', t('voice.settings.recordingDeviceNone'));
+          dropdown.setValue('');
+          dropdown.setDisabled(true);
+          return;
+        }
+
+        dropdown.setDisabled(false);
+        dropdown.addOption('', t('voice.settings.recordingDeviceDefault'));
+        devices.forEach(device => {
+          const label = device.is_default
+            ? `${device.name} (${t('voice.settings.recordingDeviceDefaultTag')})`
+            : device.name;
+          dropdown.addOption(device.name, label);
+        });
+
+        dropdown.setValue(voiceSettings.recordingDeviceName || '');
+      };
+
+      dropdown.setDisabled(true);
+      dropdown.addOption('', t('voice.settings.recordingDeviceLoading'));
+
+      dropdown.onChange(async (value) => {
+        this.context.plugin.settings.voice.recordingDeviceName = value || undefined;
+        await this.saveSettings();
+      });
+
+      void (async () => {
+        try {
+          const voiceService = await this.context.plugin.getVoiceInputService();
+          const devices = await voiceService.listInputDevices();
+          updateDropdown(devices);
+        } catch {
+          updateDropdown([]);
+        }
+      })();
+    });
+  }
+
+  /**
+   * 渲染音频压缩设置
+   */
+  private renderAudioCompressionSetting(containerEl: HTMLElement): void {
+    const voiceSettings = this.context.plugin.settings.voice;
+    const compressionNames = getAudioCompressionNames();
+
+    new Setting(containerEl)
+      .setName(t('voice.settings.audioCompression'))
+      .setDesc(t('voice.settings.audioCompressionDesc'))
+      .addDropdown(dropdown => {
+        (Object.keys(compressionNames) as VoiceAudioCompressionLevel[]).forEach(level => {
+          dropdown.addOption(level, compressionNames[level]);
+        });
+        dropdown
+          .setValue(voiceSettings.audioCompressionLevel)
+          .onChange(async (value: VoiceAudioCompressionLevel) => {
+            this.context.plugin.settings.voice.audioCompressionLevel = value;
+            await this.saveSettings();
+          });
+      });
   }
 
   /**
@@ -1091,17 +1188,12 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
 
     switch (config.provider) {
       case 'qwen':
-        this.renderASRKeyWithStorageMode(
+        this.renderQwenApiProviderSettings(
           containerEl,
-          {
-            keyName: t('voice.settings.dashscopeApiKey'),
-            keyDesc: t('voice.settings.dashscopeApiKeyDesc'),
-            keyConfig: config.dashscopeKeyConfig,
-            secretComponentAvailable,
-            onKeyConfigChange: async (keyConfig: KeyConfig | undefined) => {
-              await updateConfig({ dashscopeKeyConfig: keyConfig });
-            },
-          }
+          type,
+          config,
+          secretComponentAvailable,
+          updateConfig
         );
         break;
 
@@ -1199,6 +1291,126 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
         break;
       }
     }
+  }
+
+  private renderQwenApiProviderSettings(
+    containerEl: HTMLElement,
+    type: 'primary' | 'backup',
+    config: VoiceASRProviderConfig,
+    secretComponentAvailable: boolean,
+    updateConfig: (updates: Partial<VoiceASRProviderConfig>) => Promise<void>
+  ): void {
+    const apiProvider = config.qwenApiProvider ?? 'bailian';
+    const sectionId = `qwen-api-provider-${type}`;
+
+    const apiProviderSetting = new Setting(containerEl)
+      .setName(t('voice.settings.qwenApiProvider'))
+      .setDesc(t('voice.settings.qwenApiProviderDesc'));
+
+    apiProviderSetting.addDropdown(dropdown => {
+      dropdown
+        .addOption('modelService', t('voice.settings.qwenApiProviderModelService'))
+        .addOption('bailian', t('voice.settings.qwenApiProviderBailian'))
+        .setValue(apiProvider)
+        .onChange(async (value: VoiceQwenApiProvider) => {
+          await updateConfig({ qwenApiProvider: value });
+          this.toggleConditionalSection(containerEl, sectionId, false, () => {}, apiProviderSetting.settingEl);
+          this.toggleConditionalSection(
+            containerEl,
+            sectionId,
+            true,
+            (el) => this.renderQwenApiProviderDetails(el, config, value, secretComponentAvailable, updateConfig),
+            apiProviderSetting.settingEl
+          );
+        });
+    });
+
+    this.toggleConditionalSection(
+      containerEl,
+      sectionId,
+      true,
+      (el) => this.renderQwenApiProviderDetails(el, config, apiProvider, secretComponentAvailable, updateConfig),
+      apiProviderSetting.settingEl
+    );
+  }
+
+  private renderQwenApiProviderDetails(
+    containerEl: HTMLElement,
+    config: VoiceASRProviderConfig,
+    apiProvider: VoiceQwenApiProvider,
+    secretComponentAvailable: boolean,
+    updateConfig: (updates: Partial<VoiceASRProviderConfig>) => Promise<void>
+  ): void {
+    if (apiProvider === 'modelService') {
+      const providers = this.context.configManager.getProviders();
+      if (providers.length === 0) {
+        const hintEl = containerEl.createDiv({ cls: 'voice-qwen-provider-hint' });
+        hintEl.style.marginTop = '8px';
+        hintEl.style.fontSize = '0.85em';
+        hintEl.style.color = 'var(--text-muted)';
+        hintEl.setText(t('voice.settings.qwenProviderEmpty'));
+        return;
+      }
+
+      new Setting(containerEl)
+        .setName(t('voice.settings.qwenProviderSelect'))
+        .setDesc(t('voice.settings.qwenProviderSelectDesc'))
+        .addDropdown(dropdown => {
+          dropdown.addOption('', t('voice.settings.qwenProviderNotSelected'));
+          providers.forEach(provider => {
+            dropdown.addOption(provider.id, provider.name);
+          });
+          dropdown
+            .setValue(config.qwenProviderId || '')
+            .onChange(async (value: string) => {
+              const nextId = value || undefined;
+              await updateConfig({ qwenProviderId: nextId });
+              containerEl.empty();
+              this.renderQwenApiProviderDetails(
+                containerEl,
+                { ...config, qwenProviderId: nextId },
+                apiProvider,
+                secretComponentAvailable,
+                updateConfig
+              );
+            });
+        });
+
+      if (config.qwenProviderId) {
+        const providerExists = providers.some(provider => provider.id === config.qwenProviderId);
+        if (!providerExists) {
+          const hintEl = containerEl.createDiv({ cls: 'voice-qwen-provider-hint' });
+          hintEl.style.marginTop = '8px';
+          hintEl.style.fontSize = '0.85em';
+          hintEl.style.color = 'var(--text-warning)';
+          hintEl.setText(t('voice.settings.qwenProviderNotFound'));
+          return;
+        }
+
+        const apiKey = this.context.configManager.getApiKey(config.qwenProviderId);
+        if (!apiKey) {
+          const hintEl = containerEl.createDiv({ cls: 'voice-qwen-provider-hint' });
+          hintEl.style.marginTop = '8px';
+          hintEl.style.fontSize = '0.85em';
+          hintEl.style.color = 'var(--text-warning)';
+          hintEl.setText(t('voice.settings.qwenProviderMissingKey'));
+        }
+      }
+      return;
+    }
+
+    this.renderASRKeyWithStorageMode(
+      containerEl,
+      {
+        keyName: t('voice.settings.dashscopeApiKey'),
+        keyDesc: t('voice.settings.dashscopeApiKeyDesc'),
+        keyConfig: config.dashscopeKeyConfig,
+        secretComponentAvailable,
+        onKeyConfigChange: async (keyConfig: KeyConfig | undefined) => {
+          await updateConfig({ dashscopeKeyConfig: keyConfig });
+        },
+      }
+    );
   }
 
   /**
@@ -1330,7 +1542,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染 LLM 后处理配置设置
    */
   private renderLLMPostProcessingSettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
     const voiceSettings = this.context.plugin.settings.voice;
 
     // 标题
@@ -1477,6 +1689,26 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    */
   private renderPresetManagement(containerEl: HTMLElement): void {
     const voiceSettings = this.context.plugin.settings.voice;
+    let activePresetSelectEl: HTMLSelectElement | null = null;
+    let presetListEl: HTMLElement | null = null;
+
+    const refreshActivePresetDropdown = (): void => {
+      const selectEl = activePresetSelectEl;
+      if (!selectEl) {
+        return;
+      }
+
+      selectEl.empty();
+      voiceSettings.llmPresets.forEach(preset => {
+        const option = selectEl.createEl('option', {
+          value: preset.id,
+          text: preset.name,
+        });
+        option.setAttribute('value', preset.id);
+      });
+
+      selectEl.value = voiceSettings.activeLLMPresetId;
+    };
 
     // 预设管理标题
     new Setting(containerEl)
@@ -1489,26 +1721,21 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
       .setName(t('voice.settings.activePreset'))
       .setDesc(t('voice.settings.activePresetDesc'))
       .addDropdown(dropdown => {
-        voiceSettings.llmPresets.forEach(preset => {
-          dropdown.addOption(preset.id, preset.name);
+        activePresetSelectEl = dropdown.selectEl;
+        refreshActivePresetDropdown();
+        dropdown.onChange(async (value) => {
+          this.context.plugin.settings.voice.activeLLMPresetId = value;
+          await this.saveSettings();
+          if (presetListEl) {
+            this.renderPresetList(presetListEl, refreshActivePresetDropdown);
+          }
         });
-        dropdown
-          .setValue(voiceSettings.activeLLMPresetId)
-          .onChange(async (value) => {
-            this.context.plugin.settings.voice.activeLLMPresetId = value;
-            await this.saveSettings();
-          });
       });
 
-    // 预设列表容器
-    const presetListEl = containerEl.createDiv({ cls: 'voice-preset-list' });
-    presetListEl.style.marginTop = '12px';
-
-    // 渲染预设列表
-    this.renderPresetList(presetListEl);
-
-    // 添加预设按钮
-    new Setting(containerEl)
+    // 预设操作
+    const presetActionsSetting = new Setting(containerEl);
+    presetActionsSetting.settingEl.addClass('voice-preset-actions');
+    presetActionsSetting
       .addButton(button => button
         .setButtonText(t('voice.settings.addPreset'))
         .setCta()
@@ -1518,15 +1745,14 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
             name: t('voice.settings.newPresetName'),
             systemPrompt: '',
           };
-          this.context.plugin.settings.voice.llmPresets.push(newPreset);
+          this.context.plugin.settings.voice.llmPresets.unshift(newPreset);
           this.editingPresetId = newPreset.id;
           await this.saveSettings();
-          // 使用局部更新替代全量刷新
-          this.renderPresetList(presetListEl);
-        }));
-
-    // 重置为默认预设按钮
-    new Setting(containerEl)
+          refreshActivePresetDropdown();
+          if (presetListEl) {
+            this.renderPresetList(presetListEl, refreshActivePresetDropdown);
+          }
+        }))
       .addButton(button => button
         .setButtonText(t('voice.settings.resetPresets'))
         .onClick(async () => {
@@ -1534,32 +1760,52 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
           this.context.plugin.settings.voice.activeLLMPresetId = 'polishing';
           this.editingPresetId = null;
           await this.saveSettings();
-          // 使用局部更新替代全量刷新
-          this.renderPresetList(presetListEl);
+          refreshActivePresetDropdown();
+          if (presetListEl) {
+            this.renderPresetList(presetListEl, refreshActivePresetDropdown);
+          }
           new Notice(t('voice.settings.presetsReset'));
         }));
+
+    // 预设列表容器
+    presetListEl = containerEl.createDiv({ cls: 'voice-preset-list' });
+    presetListEl.style.marginTop = '8px';
+
+    // 渲染预设列表
+    this.renderPresetList(presetListEl, refreshActivePresetDropdown);
   }
 
   /**
    * 渲染预设列表
    * 提取为独立方法，用于局部更新
    */
-  private renderPresetList(presetListEl: HTMLElement): void {
+  private renderPresetList(
+    presetListEl: HTMLElement,
+    onPresetOptionsChange?: () => void
+  ): void {
     presetListEl.empty();
     const voiceSettings = this.context.plugin.settings.voice;
     voiceSettings.llmPresets.forEach(preset => {
-      this.renderPresetItem(presetListEl, preset);
+      this.renderPresetItem(presetListEl, preset, onPresetOptionsChange);
     });
   }
 
   /**
    * 渲染单个预设项
    */
-  private renderPresetItem(containerEl: HTMLElement, preset: VoiceLLMPreset): void {
+  private renderPresetItem(
+    containerEl: HTMLElement,
+    preset: VoiceLLMPreset,
+    onPresetOptionsChange?: () => void
+  ): void {
     const isEditing = this.editingPresetId === preset.id;
     const isDefault = DEFAULT_VOICE_LLM_PRESETS.some(p => p.id === preset.id);
+    const isActive = this.context.plugin.settings.voice.activeLLMPresetId === preset.id;
 
     const itemEl = containerEl.createDiv({ cls: 'voice-preset-item' });
+    if (isActive) {
+      itemEl.addClass('is-active');
+    }
     itemEl.style.padding = '12px';
     itemEl.style.marginBottom = '8px';
     itemEl.style.borderRadius = '6px';
@@ -1607,9 +1853,12 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
           .setCta()
           .onClick(() => {
             this.editingPresetId = null;
+            if (onPresetOptionsChange) {
+              onPresetOptionsChange();
+            }
             // 使用局部更新替代全量刷新
             const presetListEl = containerEl;
-            this.renderPresetList(presetListEl);
+            this.renderPresetList(presetListEl, onPresetOptionsChange);
           }));
     } else {
       // 显示模式
@@ -1633,7 +1882,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
         this.editingPresetId = preset.id;
         // 使用局部更新替代全量刷新
         const presetListEl = containerEl;
-        this.renderPresetList(presetListEl);
+        this.renderPresetList(presetListEl, onPresetOptionsChange);
       });
 
       // 删除按钮（默认预设不可删除）
@@ -1651,9 +1900,12 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
               this.context.plugin.settings.voice.activeLLMPresetId = presets[0]?.id || 'polishing';
             }
             await this.saveSettings();
+            if (onPresetOptionsChange) {
+              onPresetOptionsChange();
+            }
             // 使用局部更新替代全量刷新
             const presetListEl = containerEl;
-            this.renderPresetList(presetListEl);
+            this.renderPresetList(presetListEl, onPresetOptionsChange);
           }
         });
       }
@@ -1681,7 +1933,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染 AI 助手配置设置
    */
   private renderAssistantSettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
     const assistantConfig = this.context.plugin.settings.voice.assistantConfig;
 
     // 标题
@@ -1789,7 +2041,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染其他设置
    */
   private renderOtherSettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
     const voiceSettings = this.context.plugin.settings.voice;
 
     // 标题
@@ -1814,7 +2066,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
       .setName(t('voice.settings.overlayPosition'))
       .setDesc(t('voice.settings.overlayPositionDesc'))
       .addDropdown(dropdown => {
-        Object.entries(OVERLAY_POSITION_NAMES).forEach(([value, name]) => {
+        Object.entries(getOverlayPositionNames()).forEach(([value, name]) => {
           dropdown.addOption(value, name);
         });
         dropdown
@@ -1888,7 +2140,7 @@ export class VoiceSettingsRenderer extends BaseSettingsRenderer {
    * 渲染历史记录设置
    */
   private renderHistorySettings(containerEl: HTMLElement): void {
-    const card = this.createCard();
+    const card = this.createCard(containerEl);
 
     // 标题
     new Setting(card)

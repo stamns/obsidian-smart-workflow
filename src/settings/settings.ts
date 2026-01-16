@@ -428,6 +428,13 @@ export const DEFAULT_TRANSLATION_SETTINGS: TranslationSettings = {
 export type VoiceASRProvider = 'qwen' | 'doubao' | 'sensevoice';
 
 /**
+ * Qwen ASR API 提供商
+ * - modelService: 模型服务管理（复用供应商 API Key）
+ * - bailian: 阿里云百炼官方服务
+ */
+export type VoiceQwenApiProvider = 'modelService' | 'bailian';
+
+/**
  * ASR 模式
  * - realtime: WebSocket 实时模式
  * - http: HTTP 上传模式
@@ -440,6 +447,14 @@ export type VoiceASRMode = 'realtime' | 'http';
  * - toggle: 松手模式，按一次开始录音，再按一次结束
  */
 export type VoiceRecordingMode = 'press' | 'toggle';
+
+/**
+ * 音频压缩等级
+ * - original: 原始（不压缩）
+ * - medium: 中等压缩
+ * - minimum: 最小压缩
+ */
+export type VoiceAudioCompressionLevel = 'original' | 'medium' | 'minimum';
 
 /**
  * 悬浮窗位置
@@ -457,6 +472,10 @@ export interface VoiceASRProviderConfig {
   mode: VoiceASRMode;
   
   // Qwen 特有配置
+  /** Qwen API 提供商 */
+  qwenApiProvider?: VoiceQwenApiProvider;
+  /** 模型服务管理中的供应商 ID */
+  qwenProviderId?: string;
   /** DashScope 密钥配置 (阿里云) */
   dashscopeKeyConfig?: KeyConfig;
   
@@ -510,6 +529,10 @@ export interface VoiceSettings {
   // 录音模式
   /** 默认录音模式 */
   defaultRecordingMode: VoiceRecordingMode;
+  /** 录音设备名称（为空表示使用系统默认设备） */
+  recordingDeviceName?: string;
+  /** 音频压缩等级 */
+  audioCompressionLevel: VoiceAudioCompressionLevel;
   
   // ASR 配置
   /** 主 ASR 引擎配置 */
@@ -688,11 +711,14 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   
   // 录音模式
   defaultRecordingMode: 'press',
+  recordingDeviceName: undefined,
+  audioCompressionLevel: 'original',
   
   // ASR 配置
   primaryASR: {
     provider: 'qwen',
     mode: 'realtime',
+    qwenApiProvider: 'bailian',
   },
   backupASR: undefined,
   enableFallback: false,

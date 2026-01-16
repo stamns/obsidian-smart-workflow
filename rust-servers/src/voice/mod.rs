@@ -13,7 +13,13 @@ use std::time::Instant;
 use tokio::sync::{mpsc, oneshot, Mutex as TokioMutex};
 use tokio::task::JoinHandle;
 
-use audio::{AudioRecorder, RecordingMode as AudioRecordingMode, StreamingRecorder, AudioData};
+use audio::{
+    AudioRecorder,
+    RecordingMode as AudioRecordingMode,
+    StreamingRecorder,
+    AudioData,
+    list_input_devices,
+};
 use asr::{RaceStrategy, TranscriptionResult, ASRError, RealtimeTaskResult, RealtimeTranscriptionTask};
 use beep::BeepPlayer;
 use config::{ASRConfig, ASRMode};
@@ -194,6 +200,8 @@ impl VoiceHandler {
         log_info!("收到开始录音命令，模式: {:?}", mode);
         
         let mut state = self.state.lock().await;
+        let recording_device = asr_config.recording_device.clone();
+        let compression_level = asr_config.audio_compression;
         
         // 检查是否已在录音
         if state.is_recording {
@@ -220,7 +228,11 @@ impl VoiceHandler {
             });
             
             // 启动流式录音，获取音频块接收通道
-            let chunk_rx = streaming_recorder.start_streaming(mode.clone().into())
+            let chunk_rx = streaming_recorder.start_streaming(
+                mode.clone().into(),
+                recording_device.as_deref(),
+                compression_level,
+            )
                 .map_err(|e| RouterError::ModuleError(format!("启动流式录音失败: {}", e)))?;
             
             // 创建实时转录任务
@@ -282,7 +294,11 @@ impl VoiceHandler {
             });
             
             // 启动录音
-            recorder.start(mode.clone().into())
+            recorder.start(
+                mode.clone().into(),
+                recording_device.as_deref(),
+                compression_level,
+            )
                 .map_err(|e| RouterError::ModuleError(format!("启动录音失败: {}", e)))?;
             
             state.asr_config = Some(asr_config.clone());
@@ -626,6 +642,22 @@ impl VoiceHandler {
         
         Ok(None)
     }
+
+    /// 获取输入设备列表
+    async fn handle_list_input_devices(
+        &self,
+        request_id: Option<String>,
+    ) -> Result<Option<ServerResponse>, RouterError> {
+        let devices = list_input_devices()
+            .map_err(|e| RouterError::ModuleError(format!("获取录音设备失败: {}", e)))?;
+
+        let payload = serde_json::json!({
+            "devices": devices,
+            "request_id": request_id,
+        });
+
+        Ok(Some(ServerResponse::new(ModuleType::Voice, "input_devices", payload)))
+    }
     
     /// 检查是否正在录音
     pub async fn is_recording(&self) -> bool {
@@ -700,6 +732,10 @@ impl ModuleHandler for VoiceHandler {
                     .ok_or_else(|| RouterError::ModuleError("缺少 asr_config 字段".to_string()))?;
                 
                 self.handle_update_config(asr_config).await
+            }
+            "list_input_devices" => {
+                let request_id: Option<String> = msg.get_field("request_id");
+                self.handle_list_input_devices(request_id).await
             }
             _ => {
                 log_debug!("未知的 Voice 消息类型: {}", msg.msg_type);

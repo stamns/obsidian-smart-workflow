@@ -45,6 +45,21 @@ impl std::fmt::Display for ASRMode {
     }
 }
 
+/// 音频压缩等级
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioCompressionLevel {
+    Original,
+    Medium,
+    Minimum,
+}
+
+impl Default for AudioCompressionLevel {
+    fn default() -> Self {
+        AudioCompressionLevel::Minimum
+    }
+}
+
 /// ASR 供应商配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ASRProviderConfig {
@@ -155,6 +170,12 @@ pub struct ASRConfig {
     /// 是否启用音频反馈（提示音）
     #[serde(default = "default_enable_audio_feedback")]
     pub enable_audio_feedback: bool,
+    /// 录音设备名称（空则使用系统默认设备）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recording_device: Option<String>,
+    /// 音频压缩等级
+    #[serde(default)]
+    pub audio_compression: AudioCompressionLevel,
 }
 
 /// 默认启用音频反馈
@@ -170,6 +191,8 @@ impl ASRConfig {
             fallback: None,
             enable_fallback: false,
             enable_audio_feedback: true,
+            recording_device: None,
+            audio_compression: AudioCompressionLevel::default(),
         }
     }
     
@@ -180,6 +203,8 @@ impl ASRConfig {
             fallback: Some(fallback),
             enable_fallback: true,
             enable_audio_feedback: true,
+            recording_device: None,
+            audio_compression: AudioCompressionLevel::default(),
         }
     }
     

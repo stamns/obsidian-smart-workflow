@@ -881,7 +881,7 @@ export default class SmartWorkflowPlugin extends Plugin {
     // 注意：热键需要始终可用，因此不能在 checkCallback 中检查 showInCommandPalette
     // ========================================================================
 
-    // 语音听写命令
+    // 语音转录命令
     if (!Platform.isMobile) {
       this.addCommand({
         id: 'voice-dictation',
@@ -1960,7 +1960,7 @@ export default class SmartWorkflowPlugin extends Plugin {
   // ========================================================================
 
   /**
-   * 处理语音听写命令
+   * 处理语音转录命令
    * 开始录音 → ASR 转录 → LLM 后处理（可选）→ 插入文本
    */
   private async handleVoiceDictation(): Promise<void> {
@@ -1986,7 +1986,7 @@ export default class SmartWorkflowPlugin extends Plugin {
         mode: this.settings.voice.defaultRecordingMode,
       });
 
-      // 开始听写
+      // 开始转录
       await this.voiceInputService.startDictation();
 
       // 根据录音模式设置不同的行为
@@ -2122,7 +2122,7 @@ export default class SmartWorkflowPlugin extends Plugin {
       this.voiceOverlay.updateState({ type: 'processing' });
 
       if (mode === 'dictation') {
-        // 听写模式：执行完整流程
+        // 转录模式：执行完整流程
         const result = await this.voiceInputService.executeDictationFlow();
         
         // 插入文本
@@ -2464,6 +2464,7 @@ export default class SmartWorkflowPlugin extends Plugin {
       configManager: this.configManager,
       saveSettings: () => this.saveSettings(),
       variant: 'menu',
+      getVoiceInputService: () => this.getVoiceInputService(),
     });
 
     this._voiceStatusBarItem.addEventListener('click', (event) => {

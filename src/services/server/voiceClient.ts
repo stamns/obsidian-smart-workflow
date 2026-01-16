@@ -5,7 +5,7 @@
  */
 
 import { ModuleClient } from './moduleClient';
-import type { VoiceEvents, ServerMessage, ASRConfig, RecordingMode } from './types';
+import type { VoiceEvents, ServerMessage, ASRConfig, RecordingMode, InputDeviceInfo } from './types';
 import { debugLog } from '../../utils/logger';
 
 /**
@@ -14,6 +14,11 @@ import { debugLog } from '../../utils/logger';
 export class VoiceClient extends ModuleClient {
   /** 事件监听器 */
   private eventListeners: Map<keyof VoiceEvents, Set<VoiceEvents[keyof VoiceEvents]>> = new Map();
+  private pendingDeviceRequests: Map<string, {
+    resolve: (devices: InputDeviceInfo[]) => void;
+    reject: (error: Error) => void;
+    timeoutId: number;
+  }> = new Map();
 
   constructor() {
     super('voice');
@@ -54,6 +59,27 @@ export class VoiceClient extends ModuleClient {
   updateConfig(asrConfig: ASRConfig): void {
     this.send('update_config', {
       asr_config: asrConfig,
+    });
+  }
+
+  /**
+   * 获取录音输入设备列表
+   */
+  requestInputDevices(timeoutMs = 5000): Promise<InputDeviceInfo[]> {
+    if (!this.isConnected()) {
+      return Promise.reject(new Error('Voice WebSocket 未连接'));
+    }
+
+    const requestId = `input_devices_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        this.pendingDeviceRequests.delete(requestId);
+        reject(new Error('获取录音设备超时'));
+      }, timeoutMs);
+
+      this.pendingDeviceRequests.set(requestId, { resolve, reject, timeoutId });
+      this.send('list_input_devices', { request_id: requestId });
     });
   }
 
@@ -133,6 +159,20 @@ export class VoiceClient extends ModuleClient {
    */
   protected onMessage(msg: ServerMessage): void {
     switch (msg.type) {
+      case 'input_devices': {
+        const requestId = (msg as { request_id?: string }).request_id;
+        const devices = (msg as { devices?: InputDeviceInfo[] }).devices || [];
+        if (requestId && this.pendingDeviceRequests.has(requestId)) {
+          const pending = this.pendingDeviceRequests.get(requestId);
+          if (pending) {
+            window.clearTimeout(pending.timeoutId);
+            pending.resolve(devices);
+          }
+          this.pendingDeviceRequests.delete(requestId);
+          break;
+        }
+        break;
+      }
       case 'recording_state':
         this.emit('recording-state', msg.state as 'started' | 'stopped' | 'cancelled');
         break;
@@ -165,6 +205,11 @@ export class VoiceClient extends ModuleClient {
    * 清理资源
    */
   override destroy(): void {
+    this.pendingDeviceRequests.forEach(({ timeoutId, reject }) => {
+      window.clearTimeout(timeoutId);
+      reject(new Error('VoiceClient 已销毁'));
+    });
+    this.pendingDeviceRequests.clear();
     this.eventListeners.clear();
     super.destroy();
   }

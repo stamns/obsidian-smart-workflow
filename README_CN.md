@@ -22,7 +22,7 @@
 - Canvas/WebGL 渲染，可自定义主题
 
 ### 🎤 语音输入
-- 按键说话听写模式
+- 按键说话转录模式
 - 多 ASR 引擎：阿里云 Qwen、豆包 Doubao、SenseVoice
 - 实时流式转录
 - LLM 后处理，自定义预设

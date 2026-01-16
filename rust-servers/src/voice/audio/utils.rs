@@ -1,6 +1,8 @@
 // 音频工具函数模块
 // 提供 AGC (自动增益控制)、VAD (静音检测)、RMS 计算、波形生成等功能
 
+use crate::voice::config::AudioCompressionLevel;
+
 // ============================================================================
 // AGC (Automatic Gain Control) 配置常量
 // ============================================================================
@@ -213,4 +215,14 @@ pub fn normalize(samples: &mut [f32]) {
             *sample *= scale;
         }
     }
+}
+
+/// 根据压缩等级计算目标采样率（避免上采样）
+pub fn resolve_compression_sample_rate(device_sample_rate: u32, level: AudioCompressionLevel) -> u32 {
+    let target = match level {
+        AudioCompressionLevel::Original => device_sample_rate,
+        AudioCompressionLevel::Medium => 24000,
+        AudioCompressionLevel::Minimum => 16000,
+    };
+    target.min(device_sample_rate)
 }

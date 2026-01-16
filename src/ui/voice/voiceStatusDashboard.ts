@@ -5,11 +5,14 @@
 
 import { setIcon } from 'obsidian';
 import { t } from '../../i18n';
+import type { VoiceInputService } from '../../services/voice/voiceInputService';
 import type { ConfigManager } from '../../services/config/configManager';
 import type {
   SmartWorkflowSettings,
   VoiceASRProvider,
   VoiceASRMode,
+  VoiceAudioCompressionLevel,
+  VoiceOverlayPosition,
   VoiceSettings,
 } from '../../settings/settings';
 
@@ -48,11 +51,33 @@ const ASR_PROVIDER_INFO: Record<VoiceASRProvider, {
  */
 const ASR_PROVIDER_ORDER: VoiceASRProvider[] = ['doubao', 'qwen', 'sensevoice'];
 
+/**
+ * 音频压缩等级显示名称
+ */
+const getAudioCompressionNames = (): Record<VoiceAudioCompressionLevel, string> => ({
+  original: t('voice.settings.audioCompressionOriginal'),
+  medium: t('voice.settings.audioCompressionMedium'),
+  minimum: t('voice.settings.audioCompressionMinimum'),
+});
+
+/**
+ * 悬浮窗位置显示名称
+ */
+const getOverlayPositionNames = (): Record<VoiceOverlayPosition, string> => ({
+  cursor: t('voice.settings.overlayPositionCursor'),
+  center: t('voice.settings.overlayPositionCenter'),
+  'top-right': t('voice.settings.overlayPositionTopRight'),
+  bottom: t('voice.settings.overlayPositionBottom'),
+});
+
+type VoiceStatusCardId = 'asr' | 'llm' | 'assistant';
+
 type VoiceStatusDashboardContext = {
   settings: SmartWorkflowSettings;
   configManager: ConfigManager;
   saveSettings: () => Promise<void>;
   variant?: 'menu' | 'settings';
+  getVoiceInputService?: () => Promise<VoiceInputService>;
 };
 
 /**
@@ -63,12 +88,15 @@ export class VoiceStatusDashboard {
   private configManager: ConfigManager;
   private saveSettings: () => Promise<void>;
   private variant: 'menu' | 'settings';
+  private getVoiceInputService?: () => Promise<VoiceInputService>;
+  private cardCollapsedState: Partial<Record<VoiceStatusCardId, boolean>> = {};
 
   constructor(context: VoiceStatusDashboardContext) {
     this.settings = context.settings;
     this.configManager = context.configManager;
     this.saveSettings = context.saveSettings;
     this.variant = context.variant ?? 'settings';
+    this.getVoiceInputService = context.getVoiceInputService;
   }
 
   render(containerEl: HTMLElement): void {
@@ -104,6 +132,7 @@ export class VoiceStatusDashboard {
    */
   private renderASRStatusCard(containerEl: HTMLElement, voiceSettings: VoiceSettings): void {
     const { card, headerEl, bodyEl } = this.createStatusCard(containerEl, {
+      id: 'asr',
       icon: 'mic',
       iconClass: 'asr',
       title: t('voice.dashboard.asrTitle'),
@@ -189,6 +218,11 @@ export class VoiceStatusDashboard {
       }
     );
 
+    this.renderRecordingDeviceStatusItem(contentEl);
+    this.renderAudioCompressionStatusItem(contentEl);
+    this.renderAudioFeedbackStatusItem(contentEl);
+    this.renderOverlayPositionStatusItem(contentEl);
+
     // 移除末尾标点 - 点击可切换
     this.renderToggleStatusItem(
       contentEl, 
@@ -200,7 +234,7 @@ export class VoiceStatusDashboard {
       }
     );
 
-    this.attachCollapseToggle(card, headerEl, bodyEl, this.variant === 'menu');
+    this.attachCollapseToggle(card, headerEl, bodyEl, this.variant === 'menu', 'asr');
   }
 
   /**
@@ -208,6 +242,7 @@ export class VoiceStatusDashboard {
    */
   private renderLLMStatusCard(containerEl: HTMLElement, voiceSettings: VoiceSettings): void {
     const { card, headerEl, bodyEl } = this.createStatusCard(containerEl, {
+      id: 'llm',
       icon: 'sparkles',
       iconClass: 'llm',
       title: t('voice.dashboard.llmTitle'),
@@ -255,7 +290,7 @@ export class VoiceStatusDashboard {
       undefined
     );
 
-    this.attachCollapseToggle(card, headerEl, bodyEl, this.variant === 'menu');
+    this.attachCollapseToggle(card, headerEl, bodyEl, this.variant === 'menu', 'llm');
   }
 
   /**
@@ -347,6 +382,7 @@ export class VoiceStatusDashboard {
    */
   private renderAssistantStatusCard(containerEl: HTMLElement, voiceSettings: VoiceSettings): void {
     const { card, headerEl, bodyEl } = this.createStatusCard(containerEl, {
+      id: 'assistant',
       icon: 'bot',
       iconClass: 'assistant',
       title: t('voice.dashboard.assistantTitle'),
@@ -394,7 +430,7 @@ export class VoiceStatusDashboard {
       undefined
     );
 
-    this.attachCollapseToggle(card, headerEl, bodyEl, this.variant === 'menu');
+    this.attachCollapseToggle(card, headerEl, bodyEl, this.variant === 'menu', 'assistant');
   }
 
   /**
@@ -471,6 +507,7 @@ export class VoiceStatusDashboard {
   private createStatusCard(
     containerEl: HTMLElement,
     options: {
+      id: VoiceStatusCardId;
       icon: string;
       iconClass: string;
       title: string;
@@ -479,6 +516,7 @@ export class VoiceStatusDashboard {
     }
   ): { card: HTMLElement; headerEl: HTMLElement; bodyEl: HTMLElement } {
     const card = containerEl.createDiv({ cls: 'voice-status-card' });
+    card.setAttr('data-voice-status-card-id', options.id);
 
     const headerEl = card.createDiv({ cls: 'voice-status-card-header' });
     const iconEl = headerEl.createDiv({ cls: `voice-status-card-icon ${options.iconClass}` });
@@ -486,7 +524,10 @@ export class VoiceStatusDashboard {
     headerEl.createSpan({ cls: 'voice-status-card-title', text: options.title });
 
     const bodyEl = card.createDiv({ cls: 'voice-status-card-body' });
-    if (options.collapsible && options.collapsedByDefault) {
+    const isCollapsed = options.collapsible
+      ? this.getCardCollapsedState(options.id, options.collapsedByDefault)
+      : false;
+    if (options.collapsible && isCollapsed) {
       card.addClass('collapsed');
       bodyEl.setAttr('aria-hidden', 'true');
     }
@@ -498,7 +539,8 @@ export class VoiceStatusDashboard {
     card: HTMLElement,
     headerEl: HTMLElement,
     bodyEl: HTMLElement,
-    isCollapsible: boolean
+    isCollapsible: boolean,
+    cardId: VoiceStatusCardId
   ): void {
     if (!isCollapsible) {
       return;
@@ -507,17 +549,68 @@ export class VoiceStatusDashboard {
     const toggleEl = headerEl.createDiv({ cls: 'voice-status-card-collapse' });
     setIcon(toggleEl, 'chevron-down');
 
-    toggleEl.addEventListener('click', (event) => {
-      event.stopPropagation();
+    const toggleCollapse = () => {
       const isCollapsed = card.classList.contains('collapsed');
       if (isCollapsed) {
         card.removeClass('collapsed');
         bodyEl.setAttr('aria-hidden', 'false');
+        this.collapseOtherCards(card);
+        this.cardCollapsedState[cardId] = false;
       } else {
         card.addClass('collapsed');
         bodyEl.setAttr('aria-hidden', 'true');
+        this.cardCollapsedState[cardId] = true;
+      }
+    };
+
+    toggleEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleCollapse();
+    });
+
+    headerEl.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('.voice-status-toggle')) {
+        return;
+      }
+      if ((event.target as HTMLElement).closest('.voice-status-card-collapse')) {
+        return;
+      }
+      toggleCollapse();
+    });
+  }
+
+  private collapseOtherCards(activeCard: HTMLElement): void {
+    const dashboardEl = activeCard.closest('.voice-status-dashboard');
+    if (!dashboardEl) {
+      return;
+    }
+
+    const cards = dashboardEl.querySelectorAll<HTMLElement>('.voice-status-card');
+    cards.forEach(card => {
+      if (card === activeCard) {
+        return;
+      }
+
+      if (!card.classList.contains('collapsed')) {
+        card.addClass('collapsed');
+        const bodyEl = card.querySelector<HTMLElement>('.voice-status-card-body');
+        if (bodyEl) {
+          bodyEl.setAttr('aria-hidden', 'true');
+        }
+      }
+
+      const cardId = card.getAttribute('data-voice-status-card-id') as VoiceStatusCardId | null;
+      if (cardId) {
+        this.cardCollapsedState[cardId] = true;
       }
     });
+  }
+
+  private getCardCollapsedState(cardId: VoiceStatusCardId, fallback: boolean): boolean {
+    if (this.cardCollapsedState[cardId] === undefined) {
+      this.cardCollapsedState[cardId] = fallback;
+    }
+    return this.cardCollapsedState[cardId] ?? fallback;
   }
 
   /**
@@ -566,13 +659,13 @@ export class VoiceStatusDashboard {
   private renderSelectableStatusItem(
     containerEl: HTMLElement,
     label: string,
-    value: string,
+    _value: string,
     iconName: string,
     status: 'success' | 'warning' | 'error' | 'info' | 'muted',
     options: Array<{ value: string; label: string; group?: string }>,
     currentValue: string,
     onChange: (value: string) => Promise<void>
-  ): void {
+  ): HTMLSelectElement {
     const itemEl = containerEl.createDiv({ cls: 'voice-status-item clickable' });
 
     // 图标
@@ -585,6 +678,25 @@ export class VoiceStatusDashboard {
     // 值（下拉选择）
     const selectWrapper = itemEl.createDiv({ cls: 'voice-status-item-select-wrapper' });
     const selectEl = selectWrapper.createEl('select', { cls: 'voice-status-item-select' });
+
+    this.populateSelectOptions(selectEl, options, currentValue);
+
+    selectEl.addEventListener('change', async () => {
+      await onChange(selectEl.value);
+    });
+
+    // 下拉箭头
+    const arrowEl = selectWrapper.createDiv({ cls: 'voice-status-item-arrow' });
+    setIcon(arrowEl, 'chevron-down');
+    return selectEl;
+  }
+
+  private populateSelectOptions(
+    selectEl: HTMLSelectElement,
+    options: Array<{ value: string; label: string; group?: string }>,
+    currentValue: string
+  ): void {
+    selectEl.innerHTML = '';
 
     // 按组分类添加选项
     const groups = new Map<string, Array<{ value: string; label: string }>>();
@@ -619,14 +731,117 @@ export class VoiceStatusDashboard {
         }
       });
     });
+  }
 
-    selectEl.addEventListener('change', async () => {
-      await onChange(selectEl.value);
-    });
+  private renderRecordingDeviceStatusItem(containerEl: HTMLElement): void {
+    const selectEl = this.renderSelectableStatusItem(
+      containerEl,
+      t('voice.dashboard.recordingDevice'),
+      t('voice.settings.recordingDeviceLoading'),
+      'mic',
+      'info',
+      [{ value: '', label: t('voice.settings.recordingDeviceLoading') }],
+      '',
+      async (value) => {
+        this.settings.voice.recordingDeviceName = value || undefined;
+        await this.saveSettings();
+      }
+    );
+    selectEl.disabled = true;
 
-    // 下拉箭头
-    const arrowEl = selectWrapper.createDiv({ cls: 'voice-status-item-arrow' });
-    setIcon(arrowEl, 'chevron-down');
+    const updateOptions = (devices: Array<{ name: string; is_default: boolean }>) => {
+      if (devices.length === 0) {
+        this.populateSelectOptions(
+          selectEl,
+          [{ value: '', label: t('voice.settings.recordingDeviceNone') }],
+          ''
+        );
+        selectEl.disabled = true;
+        return;
+      }
+
+      const deviceOptions = [
+        { value: '', label: t('voice.settings.recordingDeviceDefault') },
+        ...devices.map(device => ({
+          value: device.name,
+          label: device.is_default
+            ? `${device.name} (${t('voice.settings.recordingDeviceDefaultTag')})`
+            : device.name,
+        })),
+      ];
+      this.populateSelectOptions(selectEl, deviceOptions, this.settings.voice.recordingDeviceName || '');
+      selectEl.disabled = false;
+    };
+
+    void (async () => {
+      if (!this.getVoiceInputService) {
+        updateOptions([]);
+        return;
+      }
+      try {
+        const voiceService = await this.getVoiceInputService();
+        const devices = await voiceService.listInputDevices();
+        updateOptions(devices);
+      } catch {
+        updateOptions([]);
+      }
+    })();
+  }
+
+  private renderAudioCompressionStatusItem(containerEl: HTMLElement): void {
+    const compressionNames = getAudioCompressionNames();
+    const compressionOptions = (Object.keys(compressionNames) as VoiceAudioCompressionLevel[]).map(level => ({
+      value: level,
+      label: compressionNames[level],
+    }));
+
+    this.renderSelectableStatusItem(
+      containerEl,
+      t('voice.dashboard.audioCompression'),
+      compressionNames[this.settings.voice.audioCompressionLevel] || '-',
+      'volume-2',
+      'info',
+      compressionOptions,
+      this.settings.voice.audioCompressionLevel,
+      async (value) => {
+        this.settings.voice.audioCompressionLevel = value as VoiceAudioCompressionLevel;
+        await this.saveSettings();
+      }
+    );
+  }
+
+  private renderAudioFeedbackStatusItem(containerEl: HTMLElement): void {
+    this.renderToggleStatusItem(
+      containerEl,
+      t('voice.settings.enableAudioFeedback'),
+      this.settings.voice.enableAudioFeedback,
+      async (value) => {
+        this.settings.voice.enableAudioFeedback = value;
+        await this.saveSettings();
+      }
+    );
+  }
+
+  private renderOverlayPositionStatusItem(containerEl: HTMLElement): void {
+    const overlayNames = getOverlayPositionNames();
+    const options = Object.entries(overlayNames).map(([value, label]) => ({
+      value,
+      label,
+    }));
+
+    this.renderSelectableStatusItem(
+      containerEl,
+      t('voice.settings.overlayPosition'),
+      overlayNames[this.settings.voice.overlayPosition] || '-',
+      'map-pin',
+      'info',
+      options,
+      this.settings.voice.overlayPosition,
+      async (value) => {
+        this.settings.voice.overlayPosition = value as VoiceOverlayPosition;
+        await this.saveSettings();
+      }
+    );
   }
 
   /**

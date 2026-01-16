@@ -37,6 +37,8 @@ interface Provider {
 interface VoiceASRProviderConfig {
   provider: string;
   mode: string;
+  qwenApiProvider?: string;
+  qwenProviderId?: string;
   dashscopeKeyConfig?: KeyConfig;
   doubaoKeyConfig?: KeyConfig;
   siliconflowKeyConfig?: KeyConfig;
@@ -50,6 +52,8 @@ interface VoiceASRProviderConfig {
 interface VoiceSettings {
   primaryASR: VoiceASRProviderConfig;
   backupASR?: VoiceASRProviderConfig;
+  recordingDeviceName?: string;
+  audioCompressionLevel?: string;
 }
 
 interface SmartWorkflowSettings {

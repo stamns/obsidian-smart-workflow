@@ -167,6 +167,9 @@ export interface SessionEventListeners {
 export type { 
   ASRConfig, 
   ASRProviderConfig, 
+  AudioCompressionLevel,
+  InputDeviceInfo,
+  InputDevicesMessage,
   RecordingMode,
   RecordingStateMessage,
   AudioLevelMessage,
